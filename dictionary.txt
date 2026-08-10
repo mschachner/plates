@@ -265,6 +265,7 @@ acclimate
 acclimated
 acclimation
 acclimatization
+acclimatizing
 accolade
 accolades
 accommodate
@@ -850,6 +851,8 @@ afterburner
 aftercare
 aftereffects
 afterglow
+afterimage
+afterimages
 afterlife
 aftermarket
 aftermath
@@ -862,6 +865,7 @@ aftershock
 aftershocks
 aftertaste
 afterthought
+afterthoughts
 afterward
 afterwards
 afterword
@@ -7495,14 +7499,19 @@ circulator
 circulatory
 circumcise
 circumcised
+circumcising
 circumcision
 circumference
 circumferential
 circumflex
 circumnavigate
+circumnavigated
+circumnavigates
+circumnavigating
 circumnavigation
 circumpolar
 circumscribed
+circumscribing
 circumspect
 circumstance
 circumstances
@@ -12043,6 +12052,7 @@ diagonal
 diagonally
 diagonals
 diagram
+diagramming
 diagrams
 dial
 dialect
@@ -12260,6 +12270,7 @@ dimorphism
 dimple
 dimpled
 dimples
+dimpling
 dims
 dimwit
 dimwitted
@@ -12376,6 +12387,9 @@ disagrees
 disallow
 disallowed
 disallowing
+disambiguate
+disambiguated
+disambiguating
 disambiguation
 disappear
 disappearance
@@ -12399,6 +12413,7 @@ disarm
 disarmament
 disarmed
 disarming
+disarmingly
 disarms
 disarray
 disassemble
@@ -12470,6 +12485,7 @@ discolor
 discoloration
 discolored
 discombobulated
+discombobulating
 discomfort
 discomforts
 disconcerted
@@ -12658,6 +12674,7 @@ dismantles
 dismantling
 dismay
 dismayed
+dismaying
 dismember
 dismembered
 dismembering
@@ -13992,6 +14009,9 @@ effectors
 effects
 effectual
 effectually
+effectuate
+effectuated
+effectuates
 effed
 effeminate
 effendi
@@ -15901,6 +15921,7 @@ faces
 facet
 faceted
 facetious
+facetiously
 facets
 facial
 facially
@@ -16273,6 +16294,7 @@ febrile
 fecal
 feces
 feckless
+fecund
 fecundity
 federal
 federalism
@@ -16350,6 +16372,7 @@ femme
 femoral
 femtosecond
 femur
+femurs
 fence
 fenced
 fencer
@@ -17743,6 +17766,7 @@ freshness
 freshwater
 fresnel
 fret
+fretful
 frets
 fretted
 fretting
@@ -18678,6 +18702,7 @@ glimmers
 glimpse
 glimpsed
 glimpses
+glimpsing
 glint
 glinting
 glioma
@@ -21590,9 +21615,11 @@ imbedded
 imbibe
 imbibed
 imbibing
+imbroglio
 imbue
 imbued
 imbues
+imbuing
 imitate
 imitated
 imitates
@@ -21636,7 +21663,9 @@ immobility
 immobilization
 immobilize
 immobilized
+immobilizing
 immodest
+immolating
 immolation
 immoral
 immorality
@@ -21644,6 +21673,7 @@ immortal
 immortality
 immortalize
 immortalized
+immortalizing
 immortals
 immovable
 immune
@@ -21653,6 +21683,7 @@ immunization
 immunizations
 immunize
 immunized
+immunizing
 immunoassay
 immunocompromised
 immunodeficiency
@@ -22089,6 +22120,7 @@ increment
 incremental
 incrementally
 incremented
+incrementing
 increments
 incriminate
 incriminated
@@ -23481,6 +23513,7 @@ itchy
 item
 itemize
 itemized
+itemizing
 items
 iterate
 iterated
@@ -27073,7 +27106,9 @@ microfinance
 micrograms
 microgravity
 micromanage
+micromanaged
 micromanagement
+micromanages
 micromanaging
 micrometer
 micrometers
@@ -27448,6 +27483,7 @@ misidentification
 misidentified
 misinformation
 misinformed
+misinforming
 misinterpret
 misinterpretation
 misinterpretations
@@ -27462,8 +27498,11 @@ misleading
 misleadingly
 misleads
 misled
+mismanage
 mismanaged
 mismanagement
+mismanages
+mismanaging
 mismatch
 mismatched
 mismatches
@@ -27483,6 +27522,7 @@ misquote
 misquoted
 misread
 misreading
+misremembering
 misrepresent
 misrepresentation
 misrepresentations
@@ -28851,6 +28891,7 @@ nickle
 nickname
 nicknamed
 nicknames
+nicknaming
 nicks
 nicotine
 niece
@@ -30381,6 +30422,7 @@ oversights
 oversimplification
 oversimplified
 oversimplify
+oversimplifying
 oversize
 oversized
 overslept
@@ -30396,6 +30438,7 @@ overstayed
 overstep
 overstepped
 overstepping
+overstimulating
 overstock
 overstretched
 overstuffed
@@ -30716,6 +30759,7 @@ panting
 panto
 pantomime
 pantomimes
+pantomiming
 pantries
 pantry
 pants
@@ -38455,6 +38499,8 @@ scribe
 scribes
 scrim
 scrimmage
+scrimmaged
+scrimmages
 scrimmaging
 scrimping
 scrims
@@ -42570,6 +42616,7 @@ sublet
 subletting
 sublimate
 sublimated
+sublimating
 sublimation
 sublime
 sublimely
