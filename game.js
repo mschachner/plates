@@ -63,6 +63,9 @@ const RANKS = [
 const RANK_COLORS = ['#8a8781', '#1e6b34', '#1b3a8c', '#c05621',
                      '#6b3fa0', '#17151a', '#a8781a'];
 
+/** Deploy build number — keep in step with the ?v= query in index.html. */
+const BUILD = 4;
+
 /** Touch devices get "Tap" wording. */
 const TAP = matchMedia('(pointer: coarse)').matches;
 const GATE_TIP = (TAP ? 'Tap' : 'Click') + ' Finish to share';
@@ -979,7 +982,14 @@ function render() {
       String(Math.max(0, Math.min(9999, total))).padStart(4, '0');
   }
   renderTrip();
+  $('inp').addEventListener('focus', () => {
+    updateMiniplate();
+    setTimeout(updateMiniplate, 300);   // keyboard slide-in
+    setTimeout(updateMiniplate, 800);
+  });
+  $('inp').addEventListener('blur', () => setTimeout(updateMiniplate, 150));
   updateMiniplate();
+  $('buildtag').textContent = 'b' + BUILD;
   const nRem = [...decisions.values()].filter(v => v === 'remove').length;
   const parts = [];
   if (found.length) {
@@ -1003,6 +1013,15 @@ function render() {
  * keeps the floating message pill above the bar, whose height this changes.
  */
 function updateMiniplate() {
+  // While the input is focused on a touch device the keyboard is (or is about
+  // to be) up; show the readout unconditionally rather than trusting the
+  // keyboard-distorted viewport geometry below.
+  if (TAP && document.activeElement === $('inp')) {
+    $('miniplate').hidden = false;
+    document.documentElement.style.setProperty('--msgbot',
+      ($('form').offsetHeight + 24) + 'px');
+    return;
+  }
   const r = document.querySelector('.plate').getBoundingClientRect();
   // Visible portion of the layout viewport (shrinks/pans when a keyboard is up).
   const vv = window.visualViewport;
