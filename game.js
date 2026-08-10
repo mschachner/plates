@@ -31,8 +31,8 @@
  * 1. Configuration
  * ================================================================ */
 
-/** Scrabble-style letter values; drives Vanity Plate "ink density". */
-const INK = { a:1, b:3, c:3, d:2, e:1, f:4, g:2, h:4, i:1, j:8, k:5, l:1, m:3,
+/** Scrabble-style letter values. */
+const SCRABBLE = { a:1, b:3, c:3, d:2, e:1, f:4, g:2, h:4, i:1, j:8, k:5, l:1, m:3,
               n:1, o:1, p:3, q:10, r:1, s:1, t:1, u:1, v:4, w:4, x:8, y:4, z:10 };
 
 /** 9 August 2026 (local time) is day 0 = Plates #1. */
@@ -53,10 +53,10 @@ const RANKS = [
   ['Pedestrian',       0],
   ["Learner's Permit", 0.02],
   ['Licensed',         0.10],
-  ['Road Trip',        0.25],
-  ['Cruising',         0.40],
+  ["Cruisin'",        0.25],
+  ["Speeding",         0.40],
   ['Overdrive',        0.55],
-  ['Grand Prix',       0.70],
+  ['Liftoff',       0.70],
 ];
 
 /** One color per rank; the plate (and share image) wear the current one. */
@@ -138,17 +138,17 @@ function scoreWord(w, clue) {
   };
 }
 
-/** Mean ink value per letter — the Vanity Plate criterion. */
+/** Mean Scrabble value per letter (for VP calculation) */
 function density(w) {
   let s = 0;
-  for (const ch of w) s += INK[ch];
+  for (const ch of w) s += SCRABBLE[ch];
   return s / w.length;
 }
 
 /**
  * Full answer list for a clue: { answers: {word: {p, s, vp?}}, vp: word }.
- * The VP is the answer with the greatest ink density (ties: shorter, then
- * alphabetical), matching RULES.md.
+ * The VP is the answer with the greatest Scrabble score density (ties: shorter, then
+ * alphabetical).
  */
 function computeAnswers(clue) {
   const ans = {};

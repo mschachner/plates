@@ -43,7 +43,7 @@
       <div class="card wordcard">
         <div class="cardhead"><span>Words</span><span class="count" id="count"></span></div>
         <div class="rule"></div>
-        <div class="empty" id="empty">Words you find will park here.</div>
+        <div class="empty" id="empty">No words found yet.</div>
         <div class="column" id="column"></div>
       </div>
     </div>
@@ -131,23 +131,21 @@
     <div class="modal">
       <button type="button" class="close" data-close>&times;</button>
       <h2>How to play</h2>
-      <p>The plate shows three letters. Find words that contain those letters in
-      order &mdash; they don't need to be next to each other. For O-G-E, FORGET
-      and ORANGE both count; GEODE does not, because the G comes before the O.
-      Words must be at least four letters. Type a word and press enter.</p>
+      <p>Try to make as many words as you can out of the letters in the plate!
+      All the letters in the plate must show up in order in your word, but they
+      don't need to be next to each other. For the clue O-G-E, FORGET
+      and ORANGE are valid, but GEODE is not valid, because the G comes before the O.
+      </p>
       <h2>Scoring</h2>
       <ul>
-        <li><b>Length</b> &mdash; 5 points for every letter beyond three.</li>
-        <li><b>Buried</b> &mdash; +25 if the word neither starts with the plate's
-        first letter nor ends with its last; +10 if it escapes at one end only.
-        For O-G-E, FORGET is buried; ORANGE wears the plate on its ends.</li>
-        <li><b>Snug</b> &mdash; +15 if the three letters appear consecutively,
-        as in TOGETHER.</li>
-        <li><b>Vanity Plate</b> &mdash; one special word on every plate is worth
+        <li><b>Length:</b> 5 points for every letter beyond three.</li>
+        <li><b>Buried:</b> +25 if the word neither starts with the plate's
+        first letter nor ends with its last, +10 if it's buried at one end only.</li>
+        <li><b>Snug: </b>+15 if the three letters appear consecutively, as in T<span style="text-decoration: underline;">OGE</span>THER.</li>
+        <li><b>Vanity Plate:</b> one special word on every plate is worth
         +250.</li>
       </ul>
-      <p>A hint reveals the shortest word you haven't found yet, showing its
-      first letter and where the plate letters sit.</p>
+      <p>Hints are available, use as many as you need!</p>
     </div>
   </div>
 <script src="data.js?v=5"></script>
