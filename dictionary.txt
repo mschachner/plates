@@ -2544,6 +2544,8 @@ bedazzling
 bedbugs
 bedded
 bedding
+bedevil
+bedeviled
 bedlam
 bedridden
 bedrock
@@ -7433,6 +7435,7 @@ dapper
 dare
 dared
 daredevil
+daredevils
 dares
 daring
 dark
@@ -8196,6 +8199,7 @@ deuterium
 devaluation
 devalue
 devalued
+devalues
 devastate
 devastated
 devastating
@@ -8219,7 +8223,9 @@ deviations
 device
 devices
 devil
+deviled
 devilish
+devilishly
 devils
 devious
 devise
@@ -8229,6 +8235,8 @@ devoid
 devolution
 devolve
 devolved
+devolves
+devolving
 devote
 devoted
 devotee
@@ -8883,12 +8891,15 @@ division
 divisional
 divisions
 divisive
+divisively
 divorce
 divorced
 divorces
 divorcing
 divulge
 divulged
+divulges
+divulging
 divvy
 dizziness
 dizzy
@@ -18250,7 +18261,6 @@ medals
 meddle
 meddling
 media
-mediaeval
 medial
 median
 mediate
@@ -24190,8 +24200,6 @@ redemptive
 redesign
 redesigned
 redesigning
-redevelop
-redeveloped
 redhead
 redheads
 redirect
