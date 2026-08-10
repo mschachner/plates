@@ -12856,6 +12856,7 @@ gliders
 glides
 gliding
 glimmer
+glimmering
 glimpse
 glimpsed
 glimpses
@@ -14940,6 +14941,7 @@ impertinent
 impervious
 impetuous
 impetus
+impinge
 impinging
 implacable
 implant
@@ -14967,6 +14969,7 @@ imploding
 implore
 implored
 imploring
+imploringly
 implosion
 imply
 implying
@@ -18636,6 +18639,7 @@ mimicked
 mimicking
 mimicry
 mimics
+miming
 mimosa
 mince
 minced
@@ -29560,6 +29564,7 @@ swim
 swimmer
 swimmers
 swimming
+swimmingly
 swims
 swimsuit
 swimsuits
