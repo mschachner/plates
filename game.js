@@ -67,7 +67,7 @@ const RANK_COLORS = ['#8a8781', '#17151a', '#1e6b34', '#1b3a8c',
 const LIFTOFF_BG = '#17151a';
 
 /** Deploy build number — keep in step with the ?v= query in index.html. */
-const BUILD = 6;
+const BUILD = 8;
 
 /** Touch devices get "Tap" wording. */
 const TAP = matchMedia('(pointer: coarse)').matches;
@@ -926,6 +926,32 @@ function openYesterday() {
 
 function isDev() { return document.body.classList.contains('dev'); }
 
+/**
+ * Dev mode is gated by a password so players don't stumble into spoilers.
+ * Only this SHA-256 hash of the password appears in source; a successful
+ * unlock is remembered per browser (storing the hash, so changing the
+ * password below revokes old unlocks).
+ *
+ * This is spoiler protection, not security: the site is fully client-side,
+ * so a determined reader can see the answers in data.js regardless.
+ *
+ * To change the password, run this in the browser console and paste the
+ * result here:
+ *   await (async s => [...new Uint8Array(await crypto.subtle.digest(
+ *     'SHA-256', new TextEncoder().encode(s)))].map(
+ *     x => x.toString(16).padStart(2, '0')).join(''))('new password')
+ */
+const DEV_HASH = '6eaf141afb05baff85d459d00518f8503a680def287d9ccd25f24010210e4b2d';
+const DEV_UNLOCK_KEY = 'plates-dev-ok';
+
+function devUnlocked() { return unstore(DEV_UNLOCK_KEY, '') === DEV_HASH; }
+
+/** SHA-256 hex digest of a string. */
+async function sha256hex(s) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+
 /** Difficulty band for dev rolls (gimme counts from ELIG). */
 function inBand(g) {
   return diff === 'easy' ? g >= 6 :
@@ -1079,8 +1105,36 @@ function wireEvents() {
   $('rulesbtn').addEventListener('click', () => openModal('rulesmodal'));
   $('statsbtn').addEventListener('click', () => { renderStats(); openModal('statsmodal'); });
   $('yestbtn').addEventListener('click', openYesterday);
-  $('devtoggle').addEventListener('change', e =>
-    document.body.classList.toggle('dev', e.target.checked));
+  // The dev switch shows only where it's relevant: on a browser that has
+  // unlocked dev mode before, or when the page is visited with #dev.
+  const syncDevVisibility = () => document.body.classList.toggle('devvis',
+    devUnlocked() || location.hash === '#dev');
+  window.addEventListener('hashchange', syncDevVisibility);
+  syncDevVisibility();
+  $('devtoggle').addEventListener('change', e => {
+    if (e.target.checked && !devUnlocked()) {
+      e.target.checked = false;
+      $('devpass').value = '';
+      $('devpassmsg').textContent = '';
+      openModal('devmodal');
+      $('devpass').focus();
+      return;
+    }
+    document.body.classList.toggle('dev', e.target.checked);
+  });
+  $('devform').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (await sha256hex($('devpass').value) !== DEV_HASH) {
+      $('devpassmsg').textContent = 'Wrong password.';
+      $('devpass').select();
+      return;
+    }
+    store(DEV_UNLOCK_KEY, DEV_HASH);
+    syncDevVisibility();
+    closeModal('devmodal');
+    $('devtoggle').checked = true;
+    document.body.classList.add('dev');
+  });
   // Floating score plate (mobile): built once, toggled by its button, with
   // the choice remembered across visits.
   buildFloatPlate();

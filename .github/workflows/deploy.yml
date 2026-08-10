@@ -1,0 +1,35 @@
+# Deploys Plates to mark-schachner.com/plates on every push to main,
+# following the pattern in the site repo's DEPLOYING.md (plain static
+# project: no build step; only the four files the browser fetches are
+# copied — fonts and the logo are embedded in them as data URLs).
+#
+# One-time setup (see DEPLOYING.md §2): a deploy key on mschachner/site
+# with write access, and its private half in this repo's Actions secret
+# SITE_DEPLOY_KEY.
+name: Deploy to site
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Push to site repo
+        env:
+          DEPLOY_KEY: ${{ secrets.SITE_DEPLOY_KEY }}
+        run: |
+          eval "$(ssh-agent -s)"
+          ssh-add - <<< "$DEPLOY_KEY"
+          git clone --depth 1 git@github.com:mschachner/site.git site
+          rm -rf site/plates
+          mkdir -p site/plates
+          cp index.html styles.css game.js data.js site/plates/
+          cd site
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add plates
+          git diff --cached --quiet || git commit -m "Deploy plates from ${GITHUB_SHA::7}"
+          git push

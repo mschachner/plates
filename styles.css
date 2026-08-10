@@ -58,7 +58,11 @@
   .buildtag { display:none; font-size:11.5px; color:var(--muted);
               font-variant-numeric:tabular-nums; }
   body.dev .buildtag { display:inline; }
-  .switch { display:inline-flex; align-items:center; gap:8px; cursor:pointer; }
+  /* The dev switch is hidden from ordinary players: it appears only for a
+     browser that has already unlocked dev mode, or when the URL ends in #dev
+     (body.devvis is set by game.js). */
+  .switch { display:none; align-items:center; gap:8px; cursor:pointer; }
+  body.devvis .switch { display:inline-flex; }
   .switch input { display:none; }
   .slider { width:34px; height:18px; border-radius:9px; background:var(--bar);
             position:relative; transition:background .25s; }
@@ -91,6 +95,11 @@
                        filter:drop-shadow(0 3px 6px rgba(120,72,32,.35)); }
   .wby { margin:10px 0 4px; }
   .modal.liftoffm { text-align:center; max-width:400px; }
+  .modal.devm { max-width:360px; }
+  .devm form { display:flex; gap:10px; margin-top:4px; }
+  .devm input { font-size:16px; text-align:left; letter-spacing:normal;
+                text-transform:none; }
+  .devpassmsg { color:var(--bad); font-size:14px; min-height:18px; margin-top:8px; }
   .liftoffm h2 { color:var(--gold); font-size:26px; }
   .finishrow button.primary { background:var(--accent); color:var(--accent-ink);
                               border-color:var(--accent); }
