@@ -2546,6 +2546,7 @@ bedded
 bedding
 bedevil
 bedeviled
+bedevils
 bedlam
 bedridden
 bedrock
@@ -8200,6 +8201,7 @@ devaluation
 devalue
 devalued
 devalues
+devaluing
 devastate
 devastated
 devastating
@@ -31612,6 +31614,7 @@ undertakings
 undertone
 undertones
 undertook
+undervalue
 undervalued
 underwater
 underway
