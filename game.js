@@ -439,6 +439,19 @@ function renderTrip() {
     s.classList.toggle('reached', total >= ranks[idx][1]);
     s.classList.toggle('current', ranks[idx][0] === cur);
   });
+  // Horizontal rails: nudge any label back inside the card. An end label
+  // centered on its dot (especially when enlarged as current) would otherwise
+  // poke past the card edge. Runs after the class toggles above, since
+  // becoming current changes a label's width.
+  if (!isVerticalTrip()) {
+    const tr = document.querySelector('.trip').getBoundingClientRect();
+    document.querySelectorAll('.sname').forEach(s => {
+      s.style.marginLeft = '0px';
+      const r = s.getBoundingClientRect();
+      if (r.left < tr.left) s.style.marginLeft = (tr.left - r.left) + 'px';
+      else if (r.right > tr.right) s.style.marginLeft = (tr.right - r.right) + 'px';
+    });
+  }
 }
 
 /* ================================================================
@@ -730,7 +743,7 @@ async function drawPlate() {
   ctx.fillStyle = color;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = '600 30px "Avenir Next", "Segoe UI", sans-serif';
+  ctx.font = '600 30px "Atkinson Hyperlegible Next", "Avenir Next", "Segoe UI", sans-serif';
   try { ctx.letterSpacing = '5px'; } catch (e) { /* older engines */ }
   ctx.fillText(plateTopText(), W / 2, 62);
   ctx.save();
@@ -741,7 +754,7 @@ async function drawPlate() {
   ctx.fillText(CLUE.toUpperCase() + '-' +
                String(Math.min(9999, total)).padStart(4, '0'), 0, 0);
   ctx.restore();
-  ctx.font = '600 30px "Avenir Next", "Segoe UI", sans-serif';
+  ctx.font = '600 30px "Atkinson Hyperlegible Next", "Avenir Next", "Segoe UI", sans-serif';
   try { ctx.letterSpacing = '5px'; } catch (e) { /* older engines */ }
   ctx.fillText((rank() + ' • hints used: ' + hintsUsed).toUpperCase(),
                W / 2, H - 62);
@@ -961,6 +974,10 @@ function resetToday(ev) {
 /** Repaint everything score-dependent and persist. Called after any change. */
 function render() {
   setOdo(total);
+  if (CLUE) {
+    $('miniplate').textContent = CLUE.toUpperCase() + '-' +
+      String(Math.max(0, Math.min(9999, total))).padStart(4, '0');
+  }
   renderTrip();
   const nRem = [...decisions.values()].filter(v => v === 'remove').length;
   const parts = [];
@@ -998,6 +1015,16 @@ function wireEvents() {
   $('yestbtn').addEventListener('click', openYesterday);
   $('devtoggle').addEventListener('change', e =>
     document.body.classList.toggle('dev', e.target.checked));
+  // The floating mobile input bar shows a compact clue+score readout whenever
+  // the hero plate is scrolled out of view (typically behind the keyboard).
+  // Desktop is unaffected: .miniplate only displays inside the fixed bar.
+  new IntersectionObserver(entries => {
+    const e = entries[entries.length - 1];
+    $('miniplate').hidden = e.intersectionRatio > 0.55;
+    // Keep the floating message pill above the bar, whose height just changed.
+    document.documentElement.style.setProperty('--msgbot',
+      ($('form').offsetHeight + 24) + 'px');
+  }, { threshold: [0, 0.55, 1] }).observe(document.querySelector('.plate'));
 
   // Welcome
   $('welcomego').addEventListener('click', () => closeModal('welcomemodal'));
