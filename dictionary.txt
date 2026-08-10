@@ -14940,6 +14940,7 @@ impertinent
 impervious
 impetuous
 impetus
+impinge
 impinging
 implacable
 implant
@@ -14967,6 +14968,7 @@ imploding
 implore
 implored
 imploring
+imploringly
 implosion
 imply
 implying
@@ -29560,6 +29562,7 @@ swim
 swimmer
 swimmers
 swimming
+swimmingly
 swims
 swimsuit
 swimsuits
