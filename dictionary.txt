@@ -8404,6 +8404,7 @@ dimmer
 dimming
 dimple
 dimples
+dimpling
 dinar
 dinars
 dine
@@ -17780,6 +17781,7 @@ mailman
 mails
 maim
 maimed
+maiming
 main
 mainframe
 mainland
@@ -18762,6 +18764,7 @@ misjudged
 mislead
 misleading
 misled
+mismanage
 mismanaged
 mismatch
 mismatched
@@ -23960,6 +23963,7 @@ realtor
 realtors
 realty
 reams
+reanimating
 reap
 reaped
 reaper
@@ -25330,6 +25334,7 @@ rigs
 riled
 rime
 rimmed
+rimming
 rims
 rind
 ring
@@ -26168,6 +26173,7 @@ scribe
 scribes
 scrim
 scrimmage
+scrimmages
 scrimmaging
 scrimping
 scrip
@@ -27100,6 +27106,8 @@ similarity
 similarly
 simmer
 simmering
+simpering
+simping
 simple
 simpler
 simplest
@@ -27254,6 +27262,7 @@ skim
 skimmed
 skimming
 skimp
+skimping
 skimpy
 skin
 skincare
