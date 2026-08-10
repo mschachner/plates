@@ -64,7 +64,7 @@ const RANK_COLORS = ['#8a8781', '#1e6b34', '#1b3a8c', '#c05621',
                      '#6b3fa0', '#17151a', '#a8781a'];
 
 /** Deploy build number — keep in step with the ?v= query in index.html. */
-const BUILD = 4;
+const BUILD = 5;
 
 /** Touch devices get "Tap" wording. */
 const TAP = matchMedia('(pointer: coarse)').matches;
@@ -346,14 +346,54 @@ function rank() {
 /** Roll the odometer reels to the (zero-padded, clamped) score. */
 function setOdo(n) {
   const s = String(Math.max(0, Math.min(9999, n))).padStart(4, '0');
-  document.querySelectorAll('.odo .reel').forEach((r, i) => {
-    r.style.transform = 'translateY(-' + (+s[i]) + 'em)';
+  document.querySelectorAll('.odo').forEach(o => {
+    o.querySelectorAll('.reel').forEach((r, i) => {
+      r.style.transform = 'translateY(-' + (+s[i]) + 'em)';
+    });
   });
 }
 
 /** "PLATES #2 • 10 August" — the plate's top field. */
 function plateTopText() {
   return 'PLATES #' + (dayIndex() + 1) + ' • ' + dateStr();
+}
+
+/** localStorage key for the mobile floating-plate preference. */
+const FLOAT_KEY = 'plates-showplate';
+
+/**
+ * Build the floating copy of the score plate (mobile). Cloning the hero
+ * plate's odometer keeps the two reels structurally identical; setOdo drives
+ * every .odo on the page, so both always agree.
+ */
+function buildFloatPlate() {
+  const p = document.createElement('div');
+  p.className = 'plate';
+  p.innerHTML = '<div class="ptop" id="fptop"></div>' +
+                '<div class="pline"><span id="fclue"></span><span>-</span></div>';
+  p.querySelector('.pline').appendChild(
+    document.querySelector('.plate .odo').cloneNode(true));
+  $('floatplate').appendChild(p);
+}
+
+/** Show or hide the floating plate, sync the button label, remember. */
+function setFloatPlate(show) {
+  $('floatplate').hidden = !show;
+  $('floattoggle').textContent = (show ? 'Hide' : 'Show') + ' score plate';
+  store(FLOAT_KEY, show);
+  layoutMobileChrome();
+}
+
+/**
+ * Position the mobile floating chrome: the plate rides just above the fixed
+ * input bar, and the message pill rides above whichever of the two is taller.
+ * The CSS variables are only consumed inside the <=980px regime.
+ */
+function layoutMobileChrome() {
+  const fh = $('form').offsetHeight;
+  document.documentElement.style.setProperty('--floatbot', (fh + 26) + 'px');
+  const extra = $('floatplate').hidden ? 0 : $('floatplate').offsetHeight + 14;
+  document.documentElement.style.setProperty('--msgbot', (fh + 24 + extra) + 'px');
 }
 
 /* ================================================================
@@ -566,6 +606,8 @@ function setPlate(clue) {
 
   $('clue').textContent = CLUE.toUpperCase();
   $('ptop').textContent = plateTopText();
+  $('fclue').textContent = CLUE.toUpperCase();
+  $('fptop').textContent = plateTopText();
   $('column').innerHTML = '';
   $('column').classList.remove('two');
   $('empty').style.display = 'block';
@@ -977,19 +1019,7 @@ function resetToday(ev) {
 /** Repaint everything score-dependent and persist. Called after any change. */
 function render() {
   setOdo(total);
-  if (CLUE) {
-    $('miniplate').textContent = CLUE.toUpperCase() + '-' +
-      String(Math.max(0, Math.min(9999, total))).padStart(4, '0');
-  }
   renderTrip();
-  $('inp').addEventListener('focus', () => {
-    updateMiniplate();
-    setTimeout(updateMiniplate, 300);   // keyboard slide-in
-    setTimeout(updateMiniplate, 800);
-  });
-  $('inp').addEventListener('blur', () => setTimeout(updateMiniplate, 150));
-  updateMiniplate();
-  $('buildtag').textContent = 'b' + BUILD;
   const nRem = [...decisions.values()].filter(v => v === 'remove').length;
   const parts = [];
   if (found.length) {
@@ -1004,33 +1034,6 @@ function render() {
     RANK_COLORS[Math.max(0, ranks.findIndex(([n]) => n === rank()))]);
   saveDay();
   renderStats();
-}
-
-/**
- * Show the compact clue+score readout in the floating mobile input bar when
- * under 45% of the hero plate is visible; hide it otherwise. Desktop is
- * unaffected (.miniplate only displays inside the fixed mobile bar). Also
- * keeps the floating message pill above the bar, whose height this changes.
- */
-function updateMiniplate() {
-  // While the input is focused on a touch device the keyboard is (or is about
-  // to be) up; show the readout unconditionally rather than trusting the
-  // keyboard-distorted viewport geometry below.
-  if (TAP && document.activeElement === $('inp')) {
-    $('miniplate').hidden = false;
-    document.documentElement.style.setProperty('--msgbot',
-      ($('form').offsetHeight + 24) + 'px');
-    return;
-  }
-  const r = document.querySelector('.plate').getBoundingClientRect();
-  // Visible portion of the layout viewport (shrinks/pans when a keyboard is up).
-  const vv = window.visualViewport;
-  const top = vv ? vv.offsetTop : 0;
-  const bot = vv ? vv.offsetTop + vv.height : window.innerHeight;
-  const visible = Math.min(r.bottom, bot) - Math.max(r.top, top);
-  $('miniplate').hidden = visible / r.height > 0.45;
-  document.documentElement.style.setProperty('--msgbot',
-    ($('form').offsetHeight + 24) + 'px');
 }
 
 function wireEvents() {
@@ -1053,18 +1056,13 @@ function wireEvents() {
   $('yestbtn').addEventListener('click', openYesterday);
   $('devtoggle').addEventListener('change', e =>
     document.body.classList.toggle('dev', e.target.checked));
-  // The floating mobile input bar shows a compact clue+score readout whenever
-  // the hero plate is mostly out of view (typically behind the phone keyboard).
-  // Computed directly against the visual viewport — on-screen keyboards resize
-  // or pan that viewport in browser-specific ways that an IntersectionObserver
-  // rooted in the layout viewport can miss.
-  window.addEventListener('scroll', updateMiniplate, { passive: true });
-  window.addEventListener('resize', updateMiniplate);
-  if (window.visualViewport) {
-    visualViewport.addEventListener('resize', updateMiniplate);
-    visualViewport.addEventListener('scroll', updateMiniplate);
-  }
-  updateMiniplate();
+  // Floating score plate (mobile): built once, toggled by its button, with
+  // the choice remembered across visits.
+  buildFloatPlate();
+  $('floattoggle').addEventListener('click', () => setFloatPlate($('floatplate').hidden));
+  window.addEventListener('resize', layoutMobileChrome);
+  setFloatPlate(unstore(FLOAT_KEY, false));
+  $('buildtag').textContent = 'b' + BUILD;
 
   // Welcome
   $('welcomego').addEventListener('click', () => closeModal('welcomemodal'));
