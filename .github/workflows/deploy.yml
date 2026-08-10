@@ -26,7 +26,7 @@ jobs:
           git clone --depth 1 git@github.com:mschachner/site.git site
           rm -rf site/plates
           mkdir -p site/plates
-          cp index.html styles.css game.js data.js site/plates/
+          cp index.html styles.css game.js data.js candidates.js site/plates/
           cd site
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
