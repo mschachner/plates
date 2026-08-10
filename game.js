@@ -52,19 +52,22 @@ const VP_BONUS = 250;
 const RANKS = [
   ['Pedestrian',       0],
   ["Learner's Permit", 0.02],
-  ['Licensed',         0.10],
-  ["Cruisin'",        0.25],
-  ["Speeding",         0.40],
-  ['Overdrive',        0.55],
-  ['Liftoff',       0.70],
+  ['Licensed',         0.095],
+  ["Cruisin'",         0.24],
+  ['Speeding',         0.38],
+  ['Overdrive',        0.52],
+  ['Liftoff',          2 / 3],
 ];
 
 /** One color per rank; the plate (and share image) wear the current one. */
-const RANK_COLORS = ['#8a8781', '#1e6b34', '#1b3a8c', '#c05621',
-                     '#6b3fa0', '#17151a', '#a8781a'];
+const RANK_COLORS = ['#8a8781', '#17151a', '#1e6b34', '#1b3a8c',
+                     '#c05621', '#6b3fa0', '#a8781a'];
+
+/** Liftoff is the show-off plate: gold lettering on this black face. */
+const LIFTOFF_BG = '#17151a';
 
 /** Deploy build number — keep in step with the ?v= query in index.html. */
-const BUILD = 5;
+const BUILD = 6;
 
 /** Touch devices get "Tap" wording. */
 const TAP = matchMedia('(pointer: coarse)').matches;
@@ -657,12 +660,16 @@ function submitWord() {
 
   found.push(w);
   const pts = a.p + (a.vp ? VP_BONUS : 0);
+  const before = total;
   total += pts;
   if (a.vp) say('VANITY PLATE — ' + W + '  +' + pts, 'gold');
   else say(W + '  +' + pts, 'ok');
   addFoundRow(w, pts, a, '');
   syncReveal();
   render();
+  // Crossing into the top rank mid-play earns the Liftoff celebration.
+  const top = ranks[ranks.length - 1][1];
+  if (before < top && total >= top) openLiftoff();
 }
 
 /** Reveal the shortest unfound word as a mask (cheapest remaining answer). */
@@ -723,24 +730,29 @@ function applyFinished() {
   syncCover();
 }
 
-function finishGame() {
+function finishGame(withConfetti) {
   finished = true;
   applyFinished();
   saveDay();
-  confetti();
+  if (withConfetti) confetti();
   openFinish();
 }
 
-/** Brief burst of blue confetti (logo blues) over everything. */
-function confetti() {
+/** Gold palette for the Liftoff burst. */
+const GOLD_CONFETTI = ['#a8781a', '#c9971f', '#e0b32c', '#f0c94a',
+                       '#f7e08a', '#fff3c4'];
+
+/** Brief burst of confetti over everything (default: logo blues). */
+function confetti(palette, count) {
   const cv = document.createElement('canvas');
   cv.style.cssText = 'position:fixed;inset:0;z-index:40;pointer-events:none;';
   cv.width = innerWidth;
   cv.height = innerHeight;
   document.body.appendChild(cv);
   const ctx = cv.getContext('2d');
-  const cols = ['#1a57c2', '#3f7ae0', '#6f9ae8', '#a5c2f5', '#dce9ff', '#fffaf0'];
-  const parts = Array.from({ length: 150 }, () => ({
+  const cols = palette || ['#1a57c2', '#3f7ae0', '#6f9ae8', '#a5c2f5',
+                           '#dce9ff', '#fffaf0'];
+  const parts = Array.from({ length: count || 150 }, () => ({
     x: innerWidth / 2 + (Math.random() - 0.5) * innerWidth * 0.55,
     y: innerHeight * 0.32 + (Math.random() - 0.5) * 60,
     vx: (Math.random() - 0.5) * 9,
@@ -780,7 +792,7 @@ async function drawPlate() {
   const W = cv.width, H = cv.height;
   const color = RANK_COLORS[Math.max(0, ranks.findIndex(([n]) => n === rank()))];
   ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = '#fffaf0';
+  ctx.fillStyle = rank() === 'Liftoff' ? LIFTOFF_BG : '#fffaf0';
   ctx.beginPath(); ctx.roundRect(10, 10, W - 20, H - 20, 44); ctx.fill();
   ctx.lineWidth = 14;
   ctx.strokeStyle = color;
@@ -875,6 +887,12 @@ async function openFinish() {
   openModal('finishmodal');
 }
 function closeFinish() { closeModal('finishmodal'); }
+
+/** The Liftoff celebration: gold confetti and a finish-or-continue choice. */
+function openLiftoff() {
+  openModal('liftoffmodal');
+  confetti(GOLD_CONFETTI, 320);
+}
 
 /** Yesterday's full answer list: found words bolded, VP in gold. */
 function openYesterday() {
@@ -1032,6 +1050,7 @@ function render() {
   $('count').textContent = parts.join(' · ');
   document.documentElement.style.setProperty('--rankc',
     RANK_COLORS[Math.max(0, ranks.findIndex(([n]) => n === rank()))]);
+  document.body.classList.toggle('liftoff', rank() === 'Liftoff');
   saveDay();
   renderStats();
 }
@@ -1045,7 +1064,13 @@ function wireEvents() {
     if (clean !== inp.value) inp.value = clean;
   });
   $('hintbtn').addEventListener('click', hint);
-  $('finishbtn').addEventListener('click', finishGame);
+  $('finishbtn').addEventListener('click', () => finishGame(true));
+  // Liftoff modal: Finish skips the blue confetti (gold already fell).
+  $('lofinish').addEventListener('click', () => {
+    closeModal('liftoffmodal');
+    finishGame(false);
+  });
+  $('lokeep').addEventListener('click', () => closeModal('liftoffmodal'));
   $('sharebtn').addEventListener('click', shareClick);
   $('copytextbtn').addEventListener('click', copyText);
   document.querySelector('.plate').addEventListener('click', plateClick);

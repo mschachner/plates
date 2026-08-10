@@ -90,6 +90,8 @@
   .modal.welcome img { height:86px; width:auto; display:block; margin:0 auto;
                        filter:drop-shadow(0 3px 6px rgba(120,72,32,.35)); }
   .wby { margin:10px 0 4px; }
+  .modal.liftoffm { text-align:center; max-width:400px; }
+  .liftoffm h2 { color:var(--gold); font-size:26px; }
   .finishrow button.primary { background:var(--accent); color:var(--accent-ink);
                               border-color:var(--accent); }
   .ysub { color:var(--muted); font-size:14px; margin:0 0 14px; }
@@ -125,7 +127,7 @@
            container-type:inline-size; background:var(--card);
            border:var(--plate-bw) solid var(--rankc, var(--accent)); border-radius:16px;
            display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow);
-           transition:border-color .6s ease; }
+           transition:border-color .6s ease, background-color .6s ease; }
   .ptop { position:absolute; top:6.5%; left:0; right:0; text-align:center; font-weight:600;
           font-size:3.4cqw; letter-spacing:.16em; color:var(--rankc, var(--accent));
           transition:color .6s ease; }
@@ -133,6 +135,8 @@
           font-size:3.4cqw; letter-spacing:.16em; color:var(--rankc, var(--accent));
           transition:color .6s ease; display:none; }
   body.fin .pbot { display:block; }
+  body.liftoff .plate { background:#17151a; }
+  body.liftoff .platecover { color:#fffaf0; }
   body.fin #form { display:none; }
   body.fin #hintbtn { display:none; }
   #copytextbtn { display:none; }
