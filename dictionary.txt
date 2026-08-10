@@ -14943,6 +14943,8 @@ impervious
 impetuous
 impetus
 impinge
+impinged
+impinges
 impinging
 implacable
 implant
@@ -24448,6 +24450,10 @@ reign
 reigned
 reigning
 reigns
+reimagine
+reimagined
+reimagines
+reimagining
 reimburse
 reimbursed
 rein
