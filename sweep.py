@@ -1,4 +1,4 @@
-"""Sweep all 17,576 three-letter clues over the game dictionary (dictionary.txt).
+"""Sweep 3- and 4-letter clues over the game dictionary (dictionary.txt).
 
 The dictionary: SCOWL (wamerican-large) lowercase-only words of length >= 4
 with zipf frequency >= 2.0, minus the editor's ditches/removals, plus keeps,
@@ -16,6 +16,8 @@ Requires: apt-get install wamerican-large; pip install wordfreq
 import csv
 from itertools import combinations
 
+CLUE_LENGTHS = (3, 4)
+
 from wordfreq import zipf_frequency
 
 TIER_BONUS = {0: 0, 1: 10, 2: 25}
@@ -30,39 +32,36 @@ INK = dict(a=1, b=3, c=3, d=2, e=1, f=4, g=2, h=4, i=1, j=8, k=5, l=1, m=3,
 def main():
     dictionary = open('dictionary.txt').read().split()
 
-    stats = {}  # clue -> [n, points, gimmes, vp_key]
+    stats = {}  # clue tuple (any length) -> [n, points, gimmes, vp_key]
     for w in dictionary:
-        subseqs = set(combinations(w, 3))
-        substrs = {tuple(w[i:i + 3]) for i in range(len(w) - 2)}
         density = sum(INK[c] for c in w) / len(w)
         gimme = zipf_frequency(w, 'en') >= GIMME_ZIPF
         vp_key = (-density, len(w), w)
-        for clue in subseqs:
-            tier = (w[0] != clue[0]) + (w[-1] != clue[2])
-            pts = (LENGTH_POINTS * (len(w) - 3) + TIER_BONUS[tier]
-                   + (SNUG_BONUS if clue in substrs else 0))
-            s = stats.get(clue)
-            if s is None:
-                stats[clue] = [1, pts, int(gimme), vp_key]
-            else:
-                s[0] += 1
-                s[1] += pts
-                s[2] += gimme
-                if vp_key < s[3]:
-                    s[3] = vp_key
+        for k in CLUE_LENGTHS:
+            if len(w) < k:   # the clue itself, spelled out, is valid
+                continue
+            substrs = {tuple(w[i:i + k]) for i in range(len(w) - k + 1)}
+            for clue in set(combinations(w, k)):
+                tier = (w[0] != clue[0]) + (w[-1] != clue[-1])
+                pts = (LENGTH_POINTS * (len(w) - k) + TIER_BONUS[tier]
+                       + (SNUG_BONUS if clue in substrs else 0))
+                s = stats.get(clue)
+                if s is None:
+                    stats[clue] = [1, pts, int(gimme), vp_key]
+                else:
+                    s[0] += 1
+                    s[1] += pts
+                    s[2] += gimme
+                    if vp_key < s[3]:
+                        s[3] = vp_key
 
     with open('sweep_results.csv', 'w', newline='') as f:
         out = csv.writer(f)
         out.writerow(['clue', 'n_answers', 'gimmes', 'perfect_score', 'vp_word'])
-        alphabet = 'abcdefghijklmnopqrstuvwxyz'
-        for a in alphabet:
-            for b in alphabet:
-                for c in alphabet:
-                    clue = (a, b, c)
-                    name = a + b + c
-                    s = stats.get(clue)
-                    n, pts, g = (s[0], s[1] + VP_BONUS, s[2]) if s else (0, 0, 0)
-                    out.writerow([name, n, g, pts, s[3][2] if s else ''])
+        for clue in sorted(stats):
+            st = stats[clue]
+            out.writerow([''.join(clue), st[0], st[2], st[1] + VP_BONUS,
+                          st[3][2]])
     elig = [s for clue, s in stats.items() if 20 <= s[0] <= 100]
     print(f'{len(elig)} eligible clues; '
           f'max perfect {max(s[1] for s in elig) + VP_BONUS}')
