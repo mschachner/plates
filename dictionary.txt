@@ -7001,6 +7001,7 @@ criminally
 criminals
 criminology
 crimp
+crimping
 crimson
 cringe
 cringed
@@ -14855,6 +14856,7 @@ immigrant
 immigrants
 immigrate
 immigrated
+immigrates
 immigrating
 immigration
 imminent
@@ -14925,6 +14927,7 @@ impertinent
 impervious
 impetuous
 impetus
+impinging
 implacable
 implant
 implantation
@@ -15141,6 +15144,7 @@ increment
 incremental
 increments
 incriminate
+incriminating
 incubated
 incubation
 incubator
@@ -15830,6 +15834,7 @@ intimacy
 intimate
 intimated
 intimately
+intimating
 intimidate
 intimidated
 intimidating
@@ -26149,6 +26154,8 @@ scribe
 scribes
 scrim
 scrimmage
+scrimmaging
+scrimping
 scrip
 script
 scripted
@@ -26919,6 +26926,7 @@ shrieking
 shrieks
 shrill
 shrimp
+shrimping
 shrimps
 shrine
 shrines
@@ -28623,6 +28631,7 @@ stillness
 stills
 stilted
 stilts
+stimming
 stimulant
 stimulants
 stimulate
