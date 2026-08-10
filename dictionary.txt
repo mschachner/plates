@@ -4759,7 +4759,6 @@ bollocks
 bolo
 bologna
 bolshevik
-bolshevism
 bolster
 bolstered
 bolstering
@@ -12684,6 +12683,7 @@ disembark
 disembarked
 disembarking
 disembodied
+disemboweling
 disenchanted
 disenchantment
 disenfranchise
@@ -27611,6 +27611,7 @@ milo
 milord
 mils
 mime
+mimeograph
 mimes
 mimesis
 mimetic
@@ -29439,6 +29440,7 @@ nonstop
 nontoxic
 nontraditional
 nontrivial
+nonvenomous
 nonverbal
 nonviolence
 nonviolent
@@ -30658,6 +30660,7 @@ overcome
 overcomes
 overcoming
 overcompensate
+overcompensates
 overcompensating
 overconfidence
 overconfident
@@ -30742,7 +30745,6 @@ overlord
 overlords
 overly
 overlying
-overman
 overnight
 overnights
 overpaid
@@ -30750,7 +30752,6 @@ overpass
 overpasses
 overpay
 overpaying
-overpayment
 overplay
 overplayed
 overplaying
@@ -30808,7 +30809,9 @@ overshot
 oversight
 oversights
 oversimplification
+oversimplifications
 oversimplified
+oversimplifies
 oversimplify
 oversize
 oversized
@@ -30825,6 +30828,10 @@ overstayed
 overstep
 overstepped
 overstepping
+overstimulate
+overstimulated
+overstimulates
+overstimulation
 overstock
 overstretched
 overstuffed
