@@ -87,22 +87,13 @@
   .reel { display:block; transition:transform .55s cubic-bezier(.2,.75,.25,1); }
   .reel span { display:block; height:1em; line-height:1; }
   .playmain { flex:1; display:flex; flex-direction:column; align-items:center; min-width:0; }
-  .trip { position:relative; width:170px; align-self:stretch; min-height:340px; }
-  .triprail { position:absolute; left:8px; top:14px; bottom:14px; width:3px;
-              background:var(--bar); border-radius:2px; }
-  .tripfill { position:absolute; bottom:0; left:0; width:100%; background:var(--accent);
-              border-radius:2px; height:var(--fill, 0%); transition:height .5s ease, width .5s ease; }
-  .stops { position:absolute; top:8px; bottom:8px; left:4px; right:0;
-           display:flex; flex-direction:column-reverse; justify-content:space-between; }
-  .stop { display:flex; align-items:center; gap:10px; font-size:12.5px;
-          color:var(--muted); }
-  .stop span { transition:font-size .45s ease, color .3s ease; white-space:nowrap; }
-  .stop.current span { font-size:16px; }
-  .stop .dot { width:11px; height:11px; border-radius:50%; background:var(--card);
-               border:2.5px solid var(--bar); flex:none; }
-  .stop.reached { color:var(--ink); }
-  .stop.reached .dot { background:var(--accent); border-color:var(--accent); }
-  .stop.current span { font-weight:700; color:var(--accent); }
+  .trip { position:relative; width:190px; align-self:stretch; min-height:340px; }
+  .trip svg { position:absolute; inset:0; width:100%; height:100%; overflow:visible; }
+  .stops { position:absolute; inset:0; pointer-events:none; }
+  .sname { position:absolute; font-size:12.5px; color:var(--muted); white-space:nowrap;
+           transition:font-size .45s ease, color .3s ease; }
+  .sname.reached { color:var(--ink); }
+  .sname.current { font-size:16px; font-weight:700; color:var(--accent); }
   form { margin-top:26px; display:flex; gap:10px; width:100%; }
   input { flex:1; min-width:0; font-size:20px; padding:12px 14px; border-radius:var(--radius);
           border:1.5px solid var(--hair); background:var(--card); color:var(--ink);
@@ -211,15 +202,9 @@
     .playmain { width:100%; }
     .pline { font-size:clamp(22px, 8.5vw, 40px); }
     .tiles { gap:26px; }
-    .trip { width:100%; height:58px; min-height:0; align-self:stretch; }
-    .triprail { left:14px; right:14px; top:15px; bottom:auto; width:auto; height:3px; }
-    .tripfill { height:100%; width:var(--fill, 0%); }
-    .stops { top:8px; bottom:auto; left:14px; right:14px; flex-direction:row;
-             justify-content:space-between; }
-    .stop { position:relative; }
-    .stop span { display:none; }
-    .stop.current span { display:block; position:absolute; top:24px; left:8px;
-                         transform:translateX(-50%); font-size:14px; }
+    .trip { width:100%; height:74px; min-height:0; align-self:stretch; }
+    .sname { display:none; }
+    .sname.current { display:block; font-size:14px; }
   }
 </style>
 </head>
@@ -271,7 +256,7 @@
       <div class="reveal" id="reveal"></div>
         </div>
         <div class="trip">
-          <div class="triprail"><div class="tripfill" id="tripfill"></div></div>
+          <svg id="tripsvg"></svg>
           <div class="stops" id="stops"></div>
         </div>
       </div>
@@ -462,15 +447,7 @@ function setPlate(clue) {
   const rv = document.getElementById('reveal');
   rv.innerHTML = ''; rv.className = 'reveal';
   document.getElementById('listbtn').textContent = 'show wordlist';
-  const stops = document.getElementById('stops');
-  stops.innerHTML = '';
-  for (const [name, pts] of ranks) {
-    const s = document.createElement('div');
-    s.className = 'stop';
-    s.dataset.pts = pts;
-    s.innerHTML = '<i class="dot"></i><span>' + name + '</span>';
-    stops.appendChild(s);
-  }
+  buildTrip();
   say('', '');
   render();
 }
@@ -489,22 +466,83 @@ function setOdo(n) {
   document.querySelectorAll('.odo .reel').forEach((r, i) =>
     r.style.transform = 'translateY(-' + (+s[i]) + 'em)');
 }
-function render() {
-  setOdo(total);
+let tripPts = null;
+function isMobileTrip() { return matchMedia('(max-width: 700px)').matches; }
+function buildTrip() {
+  const trip = document.querySelector('.trip');
+  const W = trip.clientWidth, H = trip.clientHeight, n = ranks.length;
+  tripPts = [];
+  const mob = isMobileTrip();
+  if (mob) {
+    const x0 = 22, x1 = W - 22, yA = 18, yB = 40;
+    for (let i = 0; i < n; i++)
+      tripPts.push([x0 + (x1 - x0) * i / (n - 1), i % 2 ? yA : yB]);
+  } else {
+    const y0 = H - 16, y1 = 16, xA = 14, xB = 46;
+    for (let i = 0; i < n; i++)
+      tripPts.push([i % 2 ? xB : xA, y0 + (y1 - y0) * i / (n - 1)]);
+  }
+  const svg = document.getElementById('tripsvg');
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  svg.innerHTML =
+    '<polyline points="' + tripPts.map(p => p.join(',')).join(' ') + '" fill="none"' +
+    ' stroke="var(--bar)" stroke-width="3" stroke-dasharray="0.5 8"' +
+    ' stroke-linecap="round" stroke-linejoin="round"/>' +
+    '<polyline id="tripprog" points="" fill="none" stroke="var(--accent)"' +
+    ' stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>' +
+    tripPts.map((p, i) =>
+      '<circle class="tripdot" cx="' + p[0] + '" cy="' + p[1] + '" r="5.5"' +
+      ' fill="var(--card)" stroke="var(--bar)" stroke-width="2.5"/>').join('');
+  const stops = document.getElementById('stops');
+  stops.innerHTML = '';
+  ranks.forEach(([name], i) => {
+    const s = document.createElement('span');
+    s.className = 'sname';
+    s.textContent = name;
+    const [x, y] = tripPts[i];
+    if (mob) {
+      s.style.left = x + 'px'; s.style.top = (y + 12) + 'px';
+      s.style.transform = i === 0 ? 'translateX(-12%)' :
+                          i === n - 1 ? 'translateX(-88%)' : 'translateX(-50%)';
+    } else {
+      s.style.left = (x + 16) + 'px'; s.style.top = y + 'px';
+      s.style.transform = 'translateY(-50%)';
+    }
+    stops.appendChild(s);
+  });
+}
+function renderTrip() {
+  if (!tripPts) return;
   let seg = 0;
   for (let i = 0; i < ranks.length; i++) if (total >= ranks[i][1]) seg = i;
   let frac = seg;
   if (seg < ranks.length - 1) {
-    const lo = ranks[seg][1], hi = ranks[seg+1][1];
+    const lo = ranks[seg][1], hi = ranks[seg + 1][1];
     frac = seg + Math.min(1, (total - lo) / Math.max(1, hi - lo));
   }
-  document.getElementById('tripfill').style.setProperty('--fill',
-    (100 * frac / (ranks.length - 1)) + '%');
+  const i = Math.min(Math.floor(frac), tripPts.length - 1), t = frac - i;
+  const cut = tripPts.slice(0, i + 1).map(p => p.slice());
+  if (i < tripPts.length - 1 && t > 0) {
+    const [ax, ay] = tripPts[i], [bx, by] = tripPts[i + 1];
+    cut.push([ax + (bx - ax) * t, ay + (by - ay) * t]);
+  }
+  document.getElementById('tripprog').setAttribute('points',
+    cut.map(p => p.join(',')).join(' '));
   const cur = rank();
-  document.querySelectorAll('.stop').forEach(s => {
-    s.classList.toggle('reached', total >= +s.dataset.pts);
-    s.classList.toggle('current', s.querySelector('span').textContent === cur);
+  document.querySelectorAll('.tripdot').forEach((d, idx) => {
+    const reached = total >= ranks[idx][1];
+    d.setAttribute('fill', reached ? 'var(--accent)' : 'var(--card)');
+    d.setAttribute('stroke', reached ? 'var(--accent)' : 'var(--bar)');
+    d.setAttribute('r', ranks[idx][0] === cur ? 7 : 5.5);
   });
+  document.querySelectorAll('.sname').forEach((s, idx) => {
+    s.classList.toggle('reached', total >= ranks[idx][1]);
+    s.classList.toggle('current', ranks[idx][0] === cur);
+  });
+}
+function render() {
+  setOdo(total);
+  renderTrip();
   const nRem = [...decisions.values()].filter(v => v === 'remove').length;
   const parts = [];
   if (found.length) parts.push(found.length + ' of ' + Object.keys(answers).length + ' words');
@@ -573,7 +611,10 @@ function updateColumns() {
   const avail = window.innerHeight - col.getBoundingClientRect().top - 70;
   if (col.scrollHeight > avail) col.classList.add('two');
 }
-window.addEventListener('resize', updateColumns);
+window.addEventListener('resize', () => {
+  updateColumns();
+  if (tripPts) { buildTrip(); renderTrip(); }
+});
 function makeRow(w, pts, cls, tags) {
   const row = document.createElement('div');
   row.className = 'row' + cls;
