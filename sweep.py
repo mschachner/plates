@@ -1,9 +1,13 @@
 """Sweep all 17,576 three-letter clues over the game dictionary (dictionary.txt).
 
+The dictionary: SCOWL (wamerican-large) lowercase-only words of length >= 4
+with zipf frequency >= 2.0, minus the editor's ditches/removals, plus keeps,
+rescues, and in-game additions (curation-log.csv + in-game commits).
+
 Scoring: 5 points per letter beyond three, plus burial (flat 0 / half-buried 10
 / buried 25), plus 15 for snug, plus the 250 Vanity Plate bonus per puzzle.
-A clue is banned when its three letters spell a word (SCOWL lowercase entries
-with zipf >= 2.5). Eligibility for a daily: 20-100 answers.
+Eligibility for a daily: 20-100 answers. (The old rule banning clues that
+spell a word was removed.)
 
 Output: sweep_results.csv with one row per clue.
 Requires: apt-get install wamerican-large; pip install wordfreq
@@ -25,9 +29,6 @@ INK = dict(a=1, b=3, c=3, d=2, e=1, f=4, g=2, h=4, i=1, j=8, k=5, l=1, m=3,
 
 def main():
     dictionary = open('dictionary.txt').read().split()
-    raw = open('/usr/share/dict/american-english-large').read().split()
-    scowl = {w for w in raw if w.isalpha() and w.isascii() and w == w.lower()}
-    banned = {w for w in scowl if len(w) == 3 and zipf_frequency(w, 'en') >= 2.5}
 
     stats = {}  # clue -> [n, points, gimmes, vp_key]
     for w in dictionary:
@@ -52,8 +53,7 @@ def main():
 
     with open('sweep_results.csv', 'w', newline='') as f:
         out = csv.writer(f)
-        out.writerow(['clue', 'banned', 'n_answers', 'gimmes', 'perfect_score',
-                      'vp_word'])
+        out.writerow(['clue', 'n_answers', 'gimmes', 'perfect_score', 'vp_word'])
         alphabet = 'abcdefghijklmnopqrstuvwxyz'
         for a in alphabet:
             for b in alphabet:
@@ -62,10 +62,8 @@ def main():
                     name = a + b + c
                     s = stats.get(clue)
                     n, pts, g = (s[0], s[1] + VP_BONUS, s[2]) if s else (0, 0, 0)
-                    out.writerow([name, int(name in banned), n, g, pts,
-                                  s[3][2] if s else ''])
-    elig = [s for clue, s in stats.items()
-            if ''.join(clue) not in banned and 20 <= s[0] <= 100]
+                    out.writerow([name, n, g, pts, s[3][2] if s else ''])
+    elig = [s for clue, s in stats.items() if 20 <= s[0] <= 100]
     print(f'{len(elig)} eligible clues; '
           f'max perfect {max(s[1] for s in elig) + VP_BONUS}')
 
