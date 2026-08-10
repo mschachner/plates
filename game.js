@@ -979,6 +979,7 @@ function render() {
       String(Math.max(0, Math.min(9999, total))).padStart(4, '0');
   }
   renderTrip();
+  updateMiniplate();
   const nRem = [...decisions.values()].filter(v => v === 'remove').length;
   const parts = [];
   if (found.length) {
@@ -993,6 +994,24 @@ function render() {
     RANK_COLORS[Math.max(0, ranks.findIndex(([n]) => n === rank()))]);
   saveDay();
   renderStats();
+}
+
+/**
+ * Show the compact clue+score readout in the floating mobile input bar when
+ * under 45% of the hero plate is visible; hide it otherwise. Desktop is
+ * unaffected (.miniplate only displays inside the fixed mobile bar). Also
+ * keeps the floating message pill above the bar, whose height this changes.
+ */
+function updateMiniplate() {
+  const r = document.querySelector('.plate').getBoundingClientRect();
+  // Visible portion of the layout viewport (shrinks/pans when a keyboard is up).
+  const vv = window.visualViewport;
+  const top = vv ? vv.offsetTop : 0;
+  const bot = vv ? vv.offsetTop + vv.height : window.innerHeight;
+  const visible = Math.min(r.bottom, bot) - Math.max(r.top, top);
+  $('miniplate').hidden = visible / r.height > 0.45;
+  document.documentElement.style.setProperty('--msgbot',
+    ($('form').offsetHeight + 24) + 'px');
 }
 
 function wireEvents() {
@@ -1016,15 +1035,17 @@ function wireEvents() {
   $('devtoggle').addEventListener('change', e =>
     document.body.classList.toggle('dev', e.target.checked));
   // The floating mobile input bar shows a compact clue+score readout whenever
-  // the hero plate is scrolled out of view (typically behind the keyboard).
-  // Desktop is unaffected: .miniplate only displays inside the fixed bar.
-  new IntersectionObserver(entries => {
-    const e = entries[entries.length - 1];
-    $('miniplate').hidden = e.intersectionRatio > 0.55;
-    // Keep the floating message pill above the bar, whose height just changed.
-    document.documentElement.style.setProperty('--msgbot',
-      ($('form').offsetHeight + 24) + 'px');
-  }, { threshold: [0, 0.55, 1] }).observe(document.querySelector('.plate'));
+  // the hero plate is mostly out of view (typically behind the phone keyboard).
+  // Computed directly against the visual viewport — on-screen keyboards resize
+  // or pan that viewport in browser-specific ways that an IntersectionObserver
+  // rooted in the layout viewport can miss.
+  window.addEventListener('scroll', updateMiniplate, { passive: true });
+  window.addEventListener('resize', updateMiniplate);
+  if (window.visualViewport) {
+    visualViewport.addEventListener('resize', updateMiniplate);
+    visualViewport.addEventListener('scroll', updateMiniplate);
+  }
+  updateMiniplate();
 
   // Welcome
   $('welcomego').addEventListener('click', () => closeModal('welcomemodal'));
