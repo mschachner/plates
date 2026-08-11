@@ -220,7 +220,10 @@
            border:1.5px solid var(--accent); background:var(--accent); color:var(--accent-ink);
            font-family:var(--font); }
   .msg { min-height:30px; margin:2px 0; font-size:14px; display:flex; gap:10px;
-         align-items:center; justify-content:center; }
+         align-items:center; justify-content:center;
+         opacity:0; transform:translateY(3px);
+         transition:opacity .3s ease, transform .3s ease; }
+  .msg.show { opacity:1; transform:none; }
   .msg.ok { color:var(--good); font-weight:600; }
   .msg.err { color:var(--bad); }
   .msg.gold { color:var(--gold); font-weight:800; }
@@ -413,9 +416,11 @@
             box-shadow:0 12px 32px rgba(60,35,10,.35); }
     .floatplate .plate:hover .pline { filter:none; }
     body.fin .floatplate { display:none; }
-    .msg { position:fixed; left:50%; transform:translateX(-50%); width:fit-content;
+    .msg { position:fixed; left:50%; transform:translateX(-50%) translateY(3px);
+           width:fit-content;
            max-width:calc(100vw - 24px); bottom:var(--msgbot, 76px); z-index:9; margin:0;
            justify-content:center; pointer-events:none; min-height:0; }
+    .msg.show { transform:translateX(-50%); }
     .msg.ok, .msg.err, .msg.gold { background:var(--card); border-radius:10px;
            padding:9px 12px; box-shadow:0 4px 16px rgba(60,35,10,.22); }
     .msg button { pointer-events:auto; }

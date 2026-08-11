@@ -592,19 +592,28 @@ function renderStats() {
  * 10. Messages & label flashes
  * ================================================================ */
 
-let sayTimer = null;
+let sayTimer = null, sayHideTimer = null;
 
-/** Show feedback near the input; auto-expires (longer if it carries a button). */
+/** Show feedback near the input; auto-expires (longer if it carries a button).
+ *  Sentence-cases the message and fades it in/out via .msg.show. */
 function say(text, cls, extra) {
   const m = $('msg');
-  m.textContent = text;
-  m.className = 'msg ' + (cls || '');
-  if (extra) m.appendChild(extra);
   clearTimeout(sayTimer);
-  if (text) {
-    sayTimer = setTimeout(() => { m.textContent = ''; m.className = 'msg'; },
-                          extra ? 6000 : 3000);
+  clearTimeout(sayHideTimer);
+  if (!text && !extra) {                       // explicit clear (plate reset): no fade
+    m.textContent = '';
+    m.className = 'msg';
+    return;
   }
+  m.textContent = text.charAt(0).toUpperCase() + text.slice(1);
+  m.className = 'msg ' + (cls || '');          // drops .show; the reflow below restarts the fade
+  if (extra) m.appendChild(extra);
+  void m.offsetWidth;
+  m.classList.add('show');
+  sayTimer = setTimeout(() => {
+    m.classList.remove('show');                // fade out, then empty
+    sayHideTimer = setTimeout(() => { m.textContent = ''; m.className = 'msg'; }, 300);
+  }, extra ? 6000 : 3000);
 }
 
 /** Swap a button's label briefly ("Copied") without changing its width —
@@ -755,11 +764,12 @@ function rescue(w) {
  * 12. Finish & sharing
  * ================================================================ */
 
-/** Three-line text share card. */
+/** Four-line text share card. */
 function shareText() {
   return 'Plates #' + (dayIndex() + 1) + ': ' + dateStr() + '\n' +
          '[' + CLUE.toUpperCase() + ' - ' + total + '] ' + rank() + '\n' +
-         'Hints used: ' + hintsUsed;
+         'Hints used: ' + hintsUsed + '\n' +
+         'platesgame.com';
 }
 
 /** The plate's hover cover doubles as the share gate / copy affordance. */
@@ -854,7 +864,13 @@ async function drawPlate() {
   ctx.textBaseline = 'middle';
   ctx.font = '600 30px "Atkinson Hyperlegible Next", "Avenir Next", "Segoe UI", sans-serif';
   try { ctx.letterSpacing = '5px'; } catch (e) { /* older engines */ }
-  ctx.fillText(plateTopText(), W / 2, 62);
+  // Share image carries the site URL; shrink if the longer line runs tight.
+  const topLine = plateTopText() + ' • PLATESGAME.COM';
+  if (ctx.measureText(topLine).width > W - 90) {
+    ctx.font = '600 26px "Atkinson Hyperlegible Next", "Avenir Next", "Segoe UI", sans-serif';
+    try { ctx.letterSpacing = '4px'; } catch (e) { /* older engines */ }
+  }
+  ctx.fillText(topLine, W / 2, 62);
   ctx.save();
   ctx.translate(W / 2, H * 0.56);
   ctx.scale(1, 1.2);                     // same die-stretch as the page plate
@@ -1350,6 +1366,7 @@ function wireEvents() {
   $('lokeep').addEventListener('click', () => closeModal('liftoffmodal'));
   $('sharebtn').addEventListener('click', shareClick);
   $('copytextbtn').addEventListener('click', copyText);
+  $('fincopybtn').addEventListener('click', copyText);
   document.querySelector('.plate').addEventListener('click', plateClick);
 
   // Header
