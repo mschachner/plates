@@ -330,7 +330,7 @@
   #upcoming { font-size:14px; padding:8px 10px; border-radius:var(--radius);
               border:1px solid var(--hair); background:var(--card);
               color:var(--ink); font-family:var(--font); }
-  .clueform { display:flex; gap:8px; }
+  .clueform { display:flex; gap:8px; margin-top:0; width:auto; }
   .clueform input { width:76px; font-size:14px; padding:8px 10px;
                     border-radius:var(--radius); border:1px solid var(--hair);
                     background:var(--card); color:var(--ink);
