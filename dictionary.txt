@@ -14142,7 +14142,6 @@ effectively
 effectiveness
 effectors
 effects
-effectually
 effed
 effeminate
 effendi
@@ -16592,7 +16591,6 @@ fertilizing
 fervent
 fervently
 fervor
-fescue
 fess
 fest
 fester
@@ -16873,7 +16871,6 @@ firefighting
 firefights
 fireflies
 firefly
-firehouse
 firelight
 fireman
 firemen
@@ -17537,7 +17534,6 @@ foreclose
 foreclosed
 foreclosure
 foreclosures
-forecourt
 forefather
 forefathers
 forefinger
@@ -17859,6 +17855,7 @@ freaking
 freakish
 freakishly
 freakout
+freakouts
 freaks
 freaky
 freckle
@@ -33677,7 +33674,6 @@ prefaced
 prefaces
 prefect
 prefects
-prefectural
 prefecture
 prefectures
 prefer
