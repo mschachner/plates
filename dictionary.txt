@@ -855,7 +855,6 @@ afresh
 aft
 after
 afterbirth
-afterburner
 aftercare
 aftereffects
 afterglow
@@ -7147,6 +7146,7 @@ chatting
 chatty
 chauffeur
 chauffeured
+chauffeuring
 chauffeurs
 chauvinism
 chauvinist
@@ -8140,6 +8140,7 @@ coexistence
 coexisting
 coffee
 coffeehouse
+coffeehouses
 coffeemaker
 coffees
 coffer
@@ -9075,7 +9076,6 @@ conic
 conical
 conidia
 conifer
-coniferous
 conifers
 conjectural
 conjecture
@@ -9160,6 +9160,7 @@ consequential
 consequently
 conservancy
 conservation
+conservationism
 conservationist
 conservationists
 conservatism
@@ -14140,7 +14141,6 @@ effectively
 effectiveness
 effectors
 effects
-effectual
 effectually
 effed
 effeminate
@@ -16447,6 +16447,7 @@ featured
 featureless
 features
 featurette
+featurettes
 featuring
 febrile
 fecal
@@ -16575,7 +16576,6 @@ ferritin
 ferroelectric
 ferromagnetic
 ferrous
-ferruginous
 ferry
 ferryboat
 ferrying
@@ -16730,7 +16730,6 @@ figurines
 figuring
 fila
 filament
-filamentous
 filaments
 filbert
 file
@@ -16863,7 +16862,6 @@ firebombed
 firebombing
 firebox
 firebrand
-firebug
 firecracker
 firecrackers
 fired
@@ -16886,6 +16884,7 @@ fires
 fireside
 firestorm
 firetruck
+firetrucks
 firewall
 firewalls
 firewood
@@ -17015,7 +17014,6 @@ flakey
 flaking
 flaky
 flam
-flambeau
 flamboyance
 flamboyant
 flame
@@ -17373,7 +17371,6 @@ fodder
 foe
 foes
 foetal
-foetus
 fog
 fogged
 fogging
@@ -17724,7 +17721,6 @@ forwards
 fossa
 fosse
 fossil
-fossiliferous
 fossilized
 fossils
 foster
@@ -21861,7 +21857,6 @@ imagines
 imaging
 imagining
 imaginings
-imago
 imam
 imams
 imbalance
@@ -23775,6 +23770,7 @@ itchy
 item
 itemize
 itemized
+itemizing
 items
 iterate
 iterated
@@ -29410,7 +29406,6 @@ nonfarm
 nonfat
 nonfiction
 nonfunctional
-nongovernmental
 nonhuman
 noninvasive
 nonlethal
@@ -30822,6 +30817,7 @@ overspending
 overstate
 overstated
 overstatement
+overstatements
 overstating
 overstay
 overstayed
@@ -33708,6 +33704,7 @@ preheated
 prehensile
 prehistoric
 prehistory
+preimage
 preinstalled
 prejudge
 prejudice
@@ -33983,6 +33980,7 @@ primitivism
 primo
 primogeniture
 primordial
+primping
 primrose
 primula
 prince
@@ -39838,6 +39836,7 @@ shimmering
 shimmers
 shimmery
 shimmy
+shimmying
 shims
 shin
 shindig
