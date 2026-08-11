@@ -1,6 +1,6 @@
 # Plates
 
-Plates is a daily word game based on license plates which I love to play! Every day, a new clue of 3 letters is presented, and players try to supply as many words as they can which are valid for that clue.
+Plates is a daily word game based on license plates which I love to play! Every day, a new plate clue is presented, and players try to supply as many words as they can which are valid for that clue.
 
 ## Validity
 
@@ -17,7 +17,7 @@ A word's score is determined by its length and a few additional bonuses.
 
 ### Length, burial, snugness
 
-**Length.** A valid word of length n scores 5(n − 3) points as its base: 5 points per letter beyond the clue's three letters.
+**Length.** A valid word 5 points per letter beyond the clue's letters.
 
 **Burial.** Words can be *flat*, meaning their first letter is the clue's first letter and their last letter is the clue's last letter; *half-buried*, if exactly one of these holds; or *buried*, in case none of these holds. (For example, for the clue O-G-E, the word ORANGE is flat, the word STOOGE is half-buried, and the word FORGET is buried.)
 
@@ -46,6 +46,4 @@ The game dictionary is `dictionary.txt`, built by filtering SCOWL (wamerican-lar
 
 Clues are selected so that a daily puzzle has roughly 20–100 valid words.
 
-**Difficulty and the daily schedule.** A clue's **difficulty** is measured by its count of "everyday" valid words. Easy clues have 6 or more, medium 3–5, hard 2 or fewer.
-
-Difficulty scales by day of the week.
+**Difficulty and the daily schedule.** A clue's **difficulty** is measured by its count of "everyday" valid words. Difficulty scales by day of the week.
