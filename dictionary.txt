@@ -12504,6 +12504,7 @@ disagrees
 disallow
 disallowed
 disallowing
+disambiguate
 disambiguation
 disappear
 disappearance
@@ -21871,6 +21872,7 @@ imbibing
 imbue
 imbued
 imbues
+imbuing
 imitate
 imitated
 imitates
@@ -21922,6 +21924,7 @@ immortal
 immortality
 immortalize
 immortalized
+immortalizing
 immortals
 immovable
 immune
@@ -21931,6 +21934,7 @@ immunization
 immunizations
 immunize
 immunized
+immunizing
 immunoassay
 immunocompromised
 immunodeficiency
@@ -36423,6 +36427,10 @@ reigning
 reignite
 reignited
 reigns
+reimagine
+reimagined
+reimagines
+reimagining
 reimburse
 reimbursed
 reimbursement
