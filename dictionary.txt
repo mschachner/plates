@@ -21,6 +21,7 @@ abbots
 abbr
 abbreviate
 abbreviated
+abbreviates
 abbreviation
 abbreviations
 abdicate
@@ -112,7 +113,6 @@ abracadabra
 abrasion
 abrasions
 abrasive
-abrasives
 abraxas
 abreast
 abridged
@@ -3176,6 +3176,7 @@ bakes
 baking
 baklava
 balaclava
+balaclavas
 balance
 balanced
 balancer
@@ -3696,6 +3697,7 @@ bedding
 bedecked
 bedevil
 bedeviled
+bedevils
 bedfellows
 bedlam
 bedraggled
@@ -4008,6 +4010,7 @@ between
 betwixt
 bevel
 beveled
+bevels
 beverage
 beverages
 bevy
@@ -4301,6 +4304,7 @@ bituminous
 bivalve
 bivalves
 bivouac
+bivouacs
 biweekly
 bizarre
 bizarrely
@@ -5050,6 +5054,7 @@ bout
 boutique
 boutiques
 bouts
+bovids
 bovine
 bow
 bowed
@@ -5182,7 +5187,6 @@ braves
 bravest
 braving
 bravo
-bravos
 bravura
 brawl
 brawler
@@ -6369,7 +6373,6 @@ carbonated
 carbonates
 carbonation
 carbonic
-carboniferous
 carbonized
 carbons
 carboxylate
@@ -8361,6 +8364,7 @@ combatants
 combated
 combating
 combative
+combativeness
 combats
 combatting
 combe
@@ -22541,7 +22545,10 @@ industrial
 industrialist
 industrialists
 industrialization
+industrialize
 industrialized
+industrializes
+industrializing
 industrially
 industrials
 industries
@@ -23079,6 +23086,7 @@ institutional
 institutionalization
 institutionalize
 institutionalized
+institutionalizes
 institutionally
 institutions
 instruct
@@ -28065,6 +28073,7 @@ moisturize
 moisturized
 moisturizer
 moisturizers
+moisturizes
 moisturizing
 mojo
 moke
@@ -29772,6 +29781,7 @@ obliterating
 obliteration
 oblivion
 oblivious
+obliviousness
 oblong
 obnoxious
 obnoxiously
@@ -29811,6 +29821,7 @@ obsession
 obsessions
 obsessive
 obsessively
+obsessiveness
 obsidian
 obsolescence
 obsolescent
@@ -32273,7 +32284,6 @@ philosophic
 philosophical
 philosophically
 philosophies
-philosophizing
 philosophy
 phish
 phishing
@@ -43279,6 +43289,7 @@ suburbia
 suburbs
 subversion
 subversive
+subversiveness
 subversives
 subvert
 subverted
@@ -47344,6 +47355,10 @@ universal
 universalism
 universalist
 universality
+universalize
+universalized
+universalizes
+universalizing
 universally
 universals
 universe
@@ -48526,6 +48541,8 @@ visualization
 visualizations
 visualize
 visualized
+visualizer
+visualizers
 visualizes
 visualizing
 visually
