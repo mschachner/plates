@@ -1068,7 +1068,7 @@ function roll() {
  * Both lists build lazily on first open and are cleared by setPlate.
  */
 async function openWordlist() {
-  $('wltitle').textContent = 'Dictionary — ' + UP;
+  $('wltitle').textContent = 'Wordlist for ' + UP;
   setWlStatus('');
   buildWordlistPane();
   syncReveal();
@@ -1082,7 +1082,7 @@ async function openWordlist() {
 function buildWordlistPane() {
   const box = $('reveal');
   $('wlcount').textContent = Object.keys(answers).length +
-    ' words · click a word to mark it for removal';
+    ' words';
   if (box.childElementCount) return;
   for (const w of Object.keys(answers).sort()) {
     const a = answers[w];
@@ -1138,7 +1138,7 @@ async function buildCandidatePane() {
   }
   const fits = EXTRA.filter(w => isValid(w, CLUE));
   $('candcount').textContent =
-    fits.length + ' outside the dictionary fit this clue · click to queue an addition';
+    fits.length;
   for (const w of fits) {
     const row = document.createElement('div');
     row.dataset.w = w;
