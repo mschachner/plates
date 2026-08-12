@@ -762,7 +762,10 @@ function paintShareCanvas(ctx, d, img, rankName) {
   ctx.restore();
   ctx.font = '600 30px "Atkinson Hyperlegible Next", "Avenir Next", "Segoe UI", sans-serif';
   try { ctx.letterSpacing = '5px'; } catch (e) { /* older engines */ }
-  ctx.fillText((rn + ' • hints used: ' + hintsUsed).toUpperCase(), W / 2, H - 62);
+  // A rankName override marks a designer preview: brand it "(sample)" so a
+  // screenshot of the preview can't pass for a real shared plate.
+  ctx.fillText((rn + (rankName ? ' (sample)' : '') + ' • hints used: ' +
+                hintsUsed).toUpperCase(), W / 2, H - 62);
   try { ctx.letterSpacing = '0px'; } catch (e) { /* older engines */ }
   // The design paints last: it may cover the text, and that's the fun.
   if (hasDesign(d)) {
