@@ -104,7 +104,7 @@ const RANK_COLORS = ['#8a8781', '#17151a', '#1e6b34', '#1b3a8c',
 const LIFTOFF_BG = '#17151a';
 
 /** Deploy build number — keep in step with the ?v= query in index.html. */
-const BUILD = 27;
+const BUILD = 28;
 
 /** Touch devices get "Tap" wording. */
 const TAP = matchMedia('(pointer: coarse)').matches;
@@ -239,8 +239,6 @@ let hinted = new Set();   // words revealed as hint masks
 let hintsUsed = 0;
 let finished = false;     // player pressed Finish (locks the day)
 let isDaily = false;      // current plate is today's scheduled plate
-let listOpen = false;     // dev wordlist visibility
-let candOpen = false;     // dev candidates visibility
 let diff = 'easy';        // dev roll difficulty band
 let rollLen = 'any';      // dev roll clue length: '3' | '4' | 'any'
 let tripPts = null;       // rail geometry, rebuilt on resize
@@ -361,14 +359,7 @@ function addFoundRow(w, pts, a, rescuedCls) {
   if (rescuedCls) {
     row.onclick = () => {
       if (!isDev()) return;
-      decisions.delete(w);
-      persistDecisions();
-      total -= pts;
-      found.splice(found.indexOf(w), 1);
-      row.remove();
-      updateColumns();
-      say(w.toUpperCase() + ' un-rescued', 'err');
-      render();
+      unrescue(w);
     };
   }
   insertRow(w, row);
@@ -649,7 +640,7 @@ function setPlate(clue) {
   ranks = RANKS.map(([n, f]) => [n, Math.round(perfect * f / 5) * 5]);
 
   total = 0; found = []; hinted = new Set();
-  listOpen = false; hintsUsed = 0; finished = false;
+  hintsUsed = 0; finished = false;
 
   document.body.classList.remove('fin');
   $('inp').disabled = false;
@@ -670,12 +661,9 @@ function setPlate(clue) {
   $('column').classList.remove('two');
   $('empty').style.display = 'block';
   $('reveal').innerHTML = '';
-  $('revealcard').classList.remove('open');
-  $('listbtn').textContent = 'Show wordlist';
-  candOpen = false;
   $('candlist').innerHTML = '';
-  $('candcard').classList.remove('open');
-  $('candbtn').textContent = 'Show candidates';
+  $('candcount').textContent = '';
+  closeModal('wlmodal');
   $('upcoming').value = '';
 
   buildTrip();
@@ -757,6 +745,22 @@ function rescue(w) {
   total += sc.p;
   addFoundRow(w, sc.p, { s: sc.s }, ' rescued' + (sc.s ? ' snug' : ''));
   say(w.toUpperCase() + ' rescued  +' + sc.p, 'ok');
+  renderPending();
+  render();
+}
+
+/** Dev: back out a rescued word — points, found row, and pending addition. */
+function unrescue(w) {
+  decisions.delete(w);
+  persistDecisions();
+  total -= scoreWord(w, CLUE).p;
+  found.splice(found.indexOf(w), 1);
+  const row = document.querySelector('#column .row[data-w="' + w + '"]');
+  if (row) row.remove();
+  updateColumns();
+  say(w.toUpperCase() + ' un-rescued', 'err');
+  syncCand();
+  renderPending();
   render();
 }
 
@@ -1058,36 +1062,47 @@ function roll() {
   $('inp').focus();
 }
 
-/** Dev wordlist (its own card below the play card), click-to-mark-removal. */
-function toggleList() {
-  const box = $('reveal');
-  listOpen = !listOpen;
-  $('listbtn').textContent = listOpen ? 'Hide wordlist' : 'Show wordlist';
-  $('revealcard').classList.toggle('open', listOpen);
-  if (!listOpen) return;
-  $('listcount').textContent = Object.keys(answers).length +
-    ' words · click a word to mark it for removal';
-  if (!box.childElementCount) {
-    for (const w of Object.keys(answers).sort()) {
-      const a = answers[w];
-      const row = document.createElement('div');
-      row.dataset.w = w;
-      let tags = '';
-      if (a.vp) tags += ' <span class="tag vp">VP</span>';
-      if (a.s) tags += ' <span class="tag snug">SNUG</span>';
-      row.innerHTML = w.toUpperCase() + tags +
-        ' <b>' + (a.p + (a.vp ? VP_BONUS : 0)) + '</b>';
-      row.onclick = () => {
-        if (decisions.get(w) === 'remove') decisions.delete(w);
-        else decisions.set(w, 'remove');
-        persistDecisions();
-        syncReveal();
-        render();
-      };
-      box.appendChild(row);
-    }
-  }
+/**
+ * Wordlist management (dev): one modal holding the day's wordlist beside the
+ * candidate pool, with every pending decision reviewable in a footer strip.
+ * Both lists build lazily on first open and are cleared by setPlate.
+ */
+async function openWordlist() {
+  $('wltitle').textContent = 'Dictionary — ' + UP;
+  setWlStatus('');
+  buildWordlistPane();
   syncReveal();
+  renderPending();
+  openModal('wlmodal');
+  await buildCandidatePane();
+  syncCand();
+}
+
+/** Left pane: the current plate's full answer list, click-to-mark-removal. */
+function buildWordlistPane() {
+  const box = $('reveal');
+  $('wlcount').textContent = Object.keys(answers).length +
+    ' words · click a word to mark it for removal';
+  if (box.childElementCount) return;
+  for (const w of Object.keys(answers).sort()) {
+    const a = answers[w];
+    const row = document.createElement('div');
+    row.dataset.w = w;
+    let tags = '';
+    if (a.vp) tags += ' <span class="tag vp">VP</span>';
+    if (a.s) tags += ' <span class="tag snug">SNUG</span>';
+    row.innerHTML = w.toUpperCase() + tags +
+      ' <b>' + (a.p + (a.vp ? VP_BONUS : 0)) + '</b>';
+    row.onclick = () => {
+      if (decisions.get(w) === 'remove') decisions.delete(w);
+      else decisions.set(w, 'remove');
+      persistDecisions();
+      syncReveal();
+      renderPending();
+      render();
+    };
+    box.appendChild(row);
+  }
 }
 
 /**
@@ -1112,33 +1127,32 @@ function loadExtra() {
   return extraLoaded;
 }
 
-/** Dev candidates card: out-of-dictionary words fitting the current clue. */
-async function toggleCands() {
-  candOpen = !candOpen;
-  $('candbtn').textContent = candOpen ? 'Hide candidates' : 'Show candidates';
-  $('candcard').classList.toggle('open', candOpen);
-  if (!candOpen) return;
+/** Right pane: out-of-dictionary words fitting the clue, click-to-queue. */
+async function buildCandidatePane() {
   const box = $('candlist');
-  if (!box.childElementCount) {
-    try { await loadExtra(); } catch (e) { return say(e.message, 'err'); }
-    const fits = EXTRA.filter(w => isValid(w, CLUE));
-    $('candcount').textContent =
-      fits.length + ' words outside the dictionary fit this clue · click to queue an addition';
-    for (const w of fits) {
-      const row = document.createElement('div');
-      row.dataset.w = w;
-      row.innerHTML = w.toUpperCase() + ' <b>' + scoreWord(w, CLUE).p + '</b>';
-      row.onclick = () => {
-        if (decisions.get(w) === 'add') decisions.delete(w);
-        else decisions.set(w, 'add');
-        persistDecisions();
-        syncCand();
-        render();
-      };
-      box.appendChild(row);
-    }
+  if (box.childElementCount) return;
+  $('candcount').textContent = 'loading…';
+  try { await loadExtra(); } catch (e) {
+    $('candcount').textContent = e.message;
+    return;
   }
-  syncCand();
+  const fits = EXTRA.filter(w => isValid(w, CLUE));
+  $('candcount').textContent =
+    fits.length + ' outside the dictionary fit this clue · click to queue an addition';
+  for (const w of fits) {
+    const row = document.createElement('div');
+    row.dataset.w = w;
+    row.innerHTML = w.toUpperCase() + ' <b>' + scoreWord(w, CLUE).p + '</b>';
+    row.onclick = () => {
+      if (decisions.get(w) === 'add') decisions.delete(w);
+      else decisions.set(w, 'add');
+      persistDecisions();
+      syncCand();
+      renderPending();
+      render();
+    };
+    box.appendChild(row);
+  }
 }
 
 function syncCand() {
@@ -1195,44 +1209,54 @@ async function ghPut(file, text, sha, message) {
   if (!r.ok) throw new Error(file + ': HTTP ' + r.status);
 }
 
-/** Review modal: list every pending decision, each discardable. */
-function openReview() {
-  const box = $('revlist');
-  box.innerHTML = '';
-  if (!decisions.size) {
-    box.innerHTML = '<p class="revempty">No pending changes.</p>';
-  }
+/** Footer strip: every pending decision as a discardable chip. */
+function renderPending() {
+  const chips = $('wlchips');
+  chips.innerHTML = '';
+  $('wlpending').textContent = decisions.size
+    ? decisions.size + ' pending:' : 'No pending changes.';
   for (const [w, c] of [...decisions].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
-    const row = document.createElement('div');
-    row.className = 'revrow';
-    row.innerHTML = '<span class="revkind ' + c + '">' + c + '</span>' +
-                    '<span class="revword">' + w.toUpperCase() + '</span>';
+    const chip = document.createElement('span');
+    chip.className = 'wlchip ' + c;
+    chip.title = c === 'add' ? 'queued for addition' : 'marked for removal';
+    chip.innerHTML = '<span class="wlword">' + w.toUpperCase() + '</span>';
     const x = document.createElement('button');
     x.type = 'button';
-    x.className = 'revx';
     x.innerHTML = '&times;';
     x.title = 'Discard this change';
-    x.onclick = () => {
-      decisions.delete(w);
-      persistDecisions();
-      syncReveal();
-      syncCand();
-      render();
-      openReview();                        // repaint the list in place
-    };
-    row.appendChild(x);
-    box.appendChild(row);
+    x.onclick = () => discardDecision(w);
+    chip.appendChild(x);
+    chips.appendChild(chip);
   }
-  $('revcommit').disabled = !decisions.size;
-  openModal('reviewmodal');
+  $('wlcommit').disabled = !decisions.size;
+}
+
+/** Drop one pending decision; discarding a rescue also backs the word out. */
+function discardDecision(w) {
+  if (decisions.get(w) === 'add' && found.includes(w) && !answers[w]) {
+    return unrescue(w);                    // un-rescue handles the rest
+  }
+  decisions.delete(w);
+  persistDecisions();
+  syncReveal();
+  syncCand();
+  renderPending();
+  render();
+}
+
+/** Commit status line inside the modal's footer strip. */
+function setWlStatus(text, cls) {
+  const s = $('wlstatus');
+  s.textContent = text;
+  s.className = 'wlstatus' + (cls ? ' ' + cls : '');
 }
 
 async function commitDictionary() {
-  if (!decisions.size) return say('no pending dictionary changes', 'err');
+  if (!decisions.size) return;
   if (!unstore(GH_TOKEN_KEY, '')) return openModal('ghmodal');
-  const btn = $('commitbtn');
+  const btn = $('wlcommit');
   btn.disabled = true;
-  say('committing\u2026', 'ok');
+  setWlStatus('committing\u2026');
   const committed = [...decisions];
   try {
     const data = await ghGet('data.js');
@@ -1275,18 +1299,20 @@ async function commitDictionary() {
     decisions.clear();
     persistDecisions();
     syncReveal();
+    syncCand();
+    renderPending();
     render();
-    say('committed +' + added + ' \u2212' + removed +
-        ' \u2014 live after the next deploy', 'ok');
+    setWlStatus('committed +' + added + ' \u2212' + removed +
+                ' \u2014 live after the next deploy', 'ok');
   } catch (e) {
     // A 401 means the stored token is bad or expired: forget it and re-ask.
     if (String(e.message).includes('401')) {
       store(GH_TOKEN_KEY, '');
       openModal('ghmodal');
     }
-    say('commit failed \u2014 ' + e.message, 'err');
+    setWlStatus('commit failed \u2014 ' + e.message, 'err');
   }
-  btn.disabled = false;
+  btn.disabled = !decisions.size;
 }
 
 /** Dev: set the score one short word from Liftoff, to test the celebration. */
@@ -1341,8 +1367,8 @@ function render() {
                nRem + ' marked for removal');
   }
   $('count').textContent = parts.join(' · ');
-  $('commitbtn').textContent = decisions.size
-    ? 'Review / commit (' + decisions.size + ')' : 'Review / commit';
+  $('wlbtn').textContent = decisions.size
+    ? 'Manage wordlist (' + decisions.size + ')' : 'Manage wordlist';
   document.documentElement.style.setProperty('--rankc',
     RANK_COLORS[Math.max(0, ranks.findIndex(([n]) => n === rank()))]);
   document.body.classList.toggle('liftoff', rank() === 'Liftoff');
@@ -1438,13 +1464,8 @@ function wireEvents() {
   // Dev tools
   $('rollbtn').addEventListener('click', roll);
   $('todaybtn').addEventListener('click', goDaily);
-  $('listbtn').addEventListener('click', toggleList);
-  $('candbtn').addEventListener('click', toggleCands);
-  $('commitbtn').addEventListener('click', openReview);
-  $('revcommit').addEventListener('click', () => {
-    closeModal('reviewmodal');
-    commitDictionary();
-  });
+  $('wlbtn').addEventListener('click', openWordlist);
+  $('wlcommit').addEventListener('click', commitDictionary);
   $('ghform').addEventListener('submit', e => {
     e.preventDefault();
     const t = $('ghtoken').value.trim();

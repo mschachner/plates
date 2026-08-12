@@ -104,21 +104,41 @@
              color:var(--accent); line-height:1; transform:scaleY(1.2); }
   .exlist { font-size:15px; line-height:1.8; }
   .exlist b { color:var(--accent); font-weight:700; }
-  /* Dictionary-changes review list. */
-  .revlist { max-height:320px; overflow:auto; margin:4px 0 2px; }
-  .revrow { display:flex; align-items:center; gap:12px; padding:6px 8px;
-            border-radius:7px; }
-  .revrow:hover { background:var(--chip); }
-  .revkind { flex:none; width:70px; text-align:center; font-size:11px;
-             font-weight:700; letter-spacing:.08em; text-transform:uppercase;
-             border-radius:6px; padding:3px 0; }
-  .revkind.add { background:#e6eeda; color:var(--good); }
-  .revkind.remove { background:#f3ded9; color:var(--bad); }
-  .revword { font-size:15px; }
-  .revx { margin-left:auto; background:none; border:none; color:var(--muted);
-          font-size:18px; padding:2px 8px; cursor:pointer; }
-  .revx:hover { color:var(--bad); }
-  .revempty { color:var(--muted); }
+  /* Wordlist-management modal (dev): wordlist and candidates side by side,
+     pending changes in a footer strip. */
+  .modal.wlm { max-width:1080px; width:min(1080px, 96vw); height:min(760px, 84vh);
+               display:flex; flex-direction:column; overflow:hidden;
+               padding:26px 32px 22px; }
+  .wlm h2 { flex:none; }
+  .wlpanes { display:grid; grid-template-columns:1fr 1fr; gap:0 36px;
+             flex:1; min-height:0; }
+  .wlpane { display:flex; flex-direction:column; min-height:0; min-width:0; }
+  .wlpane .rule { margin:10px 0 0; flex:none; }
+  .wlhead { display:flex; justify-content:space-between; align-items:baseline;
+            gap:14px; font-weight:700; font-size:16px; letter-spacing:.02em; }
+  .wllist { flex:1; overflow-y:auto; padding:8px 2px 4px; }
+  .wlstrip { display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+             flex:none; border-top:1px solid var(--hair);
+             margin-top:14px; padding-top:14px; }
+  .wlpending { color:var(--muted); font-size:14px; white-space:nowrap; }
+  .wlchips { display:flex; flex-wrap:wrap; gap:6px; align-items:center;
+             flex:1; min-width:120px; max-height:88px; overflow-y:auto; }
+  .wlchip { display:inline-flex; align-items:center; gap:2px; font-size:13px;
+            font-weight:600; border-radius:7px; padding:3px 4px 3px 10px; }
+  .wlchip.add { background:#e6eeda; color:var(--good); }
+  .wlchip.remove { background:#f3ded9; color:var(--bad); }
+  .wlchip.remove .wlword { text-decoration:line-through; }
+  .wlchip button { background:none; border:none; color:inherit; opacity:.55;
+                   font-size:15px; line-height:1; padding:2px 6px; cursor:pointer; }
+  .wlchip button:hover { opacity:1; }
+  .wlstatus { font-size:14px; color:var(--muted); }
+  .wlstatus.ok { color:var(--good); font-weight:600; }
+  .wlstatus.err { color:var(--bad); }
+  .wlstrip .primary { margin-left:auto; font-size:15px; padding:9px 22px; }
+  .wlstrip .primary:disabled { opacity:.45; cursor:default; }
+  @media (max-width: 760px) {
+    .wlpanes { grid-template-columns:1fr; grid-template-rows:1fr 1fr; gap:14px 0; }
+  }
   .modal.devm { max-width:360px; }
   .devm form { display:flex; gap:10px; margin-top:4px; }
   .devm input { font-size:16px; text-align:left; letter-spacing:normal;
@@ -346,15 +366,10 @@
 
 /* ---- 10. dev & finished gates ---- */
   body:not(.dev) .devonly { display:none !important; }
-  /* The dev wordlist lives in its own card below the play card; visible only
-     in dev mode while toggled open. */
-  .revealcard { display:none; margin-top:calc(24px*var(--sp)); width:min(980px, 100%);
-                padding:calc(26px*var(--sp)) calc(30px*var(--sp)); }
-  body.dev .revealcard.open { display:block; }
-  /* Multi-column when the card is wide enough; rows never split across a
-     column break. Long words can be tight in a narrow column, so each row
-     may shrink its text rather than overflow. */
-  .reveal { width:100%; columns:15em; column-gap:30px; }
+  /* Multi-column word lists (inside the wordlist modal's panes); rows never
+     split across a column break. Long words can be tight in a narrow column,
+     so each row may shrink its text rather than overflow. */
+  .reveal { width:100%; columns:13em; column-gap:26px; }
   .reveal div[data-w] { break-inside:avoid; }
   .rword { display:flex; gap:10px; align-items:baseline; padding:5px 8px; border-radius:7px;
            cursor:pointer; font-size:15px; white-space:nowrap; min-width:0; }
