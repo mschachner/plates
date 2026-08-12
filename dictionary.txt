@@ -16533,6 +16533,7 @@ femme
 femoral
 femtosecond
 femur
+femurs
 fen
 fence
 fenced
@@ -16622,6 +16623,7 @@ fetuses
 feud
 feudal
 feudalism
+feudalist
 feuded
 feuding
 feuds
