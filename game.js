@@ -711,7 +711,7 @@ function submitWord() {
   const pts = a.p + (a.vp ? VP_BONUS : 0);
   const before = total;
   total += pts;
-  if (a.vp) say('VANITY PLATE — ' + W + '  +' + pts, 'gold');
+  if (a.vp) say('VANITY PLATE! ' + W + '  +' + pts, 'gold');
   else say(W + '  +' + pts, 'ok');
   addFoundRow(w, pts, a, '');
   syncReveal();
@@ -983,7 +983,7 @@ function renderYesterday() {
   const box = $('ylist');
   box.innerHTML = '';
   if (!info) {
-    sub.textContent = 'This is the very first Plates — no yesterday yet.';
+    sub.textContent = 'This is the very first Plates: no yesterday yet.';
   } else {
     const { answers: ya, vp } = computeAnswers(info.clue);
     const got = new Set((statsDays[info.key] && statsDays[info.key].f) || []);
@@ -1303,14 +1303,14 @@ async function commitDictionary() {
     renderPending();
     render();
     setWlStatus('committed +' + added + ' \u2212' + removed +
-                ' \u2014 live after the next deploy', 'ok');
+                '. live after the next deploy', 'ok');
   } catch (e) {
     // A 401 means the stored token is bad or expired: forget it and re-ask.
     if (String(e.message).includes('401')) {
       store(GH_TOKEN_KEY, '');
       openModal('ghmodal');
     }
-    setWlStatus('commit failed \u2014 ' + e.message, 'err');
+    setWlStatus('commit failed. ' + e.message, 'err');
   }
   btn.disabled = !decisions.size;
 }
@@ -1484,8 +1484,8 @@ function wireEvents() {
     d.setDate(d.getDate() + k);
     const o = document.createElement('option');
     o.value = SCHED[((idx % n) + n) % n];
-    o.textContent = '#' + (idx + 1) + ' \u2014 ' + d.getDate() + ' ' +
-                    MO[d.getMonth()] + ' \u2014 ' + o.value.toUpperCase();
+    o.textContent = '#' + (idx + 1) + ' / ' + d.getDate() + ' ' +
+                    MO[d.getMonth()] + ' / ' + o.value.toUpperCase();
     up.appendChild(o);
   }
   up.addEventListener('change', () => {
