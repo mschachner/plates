@@ -1065,6 +1065,8 @@ function toggleList() {
   $('listbtn').textContent = listOpen ? 'Hide wordlist' : 'Show wordlist';
   $('revealcard').classList.toggle('open', listOpen);
   if (!listOpen) return;
+  $('listcount').textContent = Object.keys(answers).length +
+    ' words · click a word to mark it for removal';
   if (!box.childElementCount) {
     for (const w of Object.keys(answers).sort()) {
       const a = answers[w];
@@ -1351,6 +1353,11 @@ function render() {
 function wireEvents() {
   // Play
   $('form').addEventListener('submit', e => { e.preventDefault(); submitWord(); });
+  // Tapping the on-screen Enter or Hint button must not move focus off the
+  // input, or the mobile keyboard collapses. Cancelling pointerdown keeps
+  // focus where it is; the click (and form submit) still fire.
+  $('enterbtn').addEventListener('pointerdown', e => e.preventDefault());
+  $('hintbtn').addEventListener('pointerdown', e => e.preventDefault());
   $('inp').addEventListener('input', () => {
     const inp = $('inp');
     const clean = inp.value.replace(/[^a-zA-Z]/g, '');   // letters only
