@@ -5959,7 +5959,6 @@ cabins
 cable
 cabled
 cables
-cablevision
 cabling
 cabochon
 caboose
@@ -6099,7 +6098,6 @@ calories
 calorific
 calorimeter
 calorimetry
-calvados
 calves
 calving
 calypso
@@ -6761,7 +6759,10 @@ caving
 cavitation
 cavities
 cavity
+cavort
+cavorted
 cavorting
+cavorts
 caw
 cayenne
 cayman
@@ -7252,7 +7253,6 @@ chestnut
 chestnuts
 chests
 chesty
-cheviot
 chevron
 chevrons
 chevy
@@ -8262,7 +8262,6 @@ collectives
 collectivism
 collectivist
 collectivity
-collectivization
 collector
 collectors
 collects
@@ -9167,11 +9166,7 @@ conservatism
 conservative
 conservatively
 conservatives
-conservatoire
-conservator
 conservatories
-conservators
-conservatorship
 conservatory
 conserve
 conserved
@@ -9453,7 +9448,6 @@ contravene
 contravened
 contravenes
 contravening
-contravention
 contribute
 contributed
 contributes
@@ -9499,7 +9493,6 @@ conveniences
 convenient
 conveniently
 convening
-convenor
 convent
 convention
 conventional
@@ -9559,6 +9552,9 @@ conviviality
 convocation
 convoluted
 convolution
+convolve
+convolved
+convolves
 convoy
 convoys
 convulsed
@@ -9929,6 +9925,7 @@ counterpoint
 counterpoints
 counterproductive
 counterpunch
+counterrevolutionaries
 counterrevolutionary
 counters
 counterstrike
@@ -14166,6 +14163,7 @@ effortlessly
 efforts
 effusion
 effusive
+effusively
 egalitarian
 egalitarianism
 egg
@@ -15143,11 +15141,16 @@ equitably
 equities
 equity
 equivalence
+equivalences
 equivalency
 equivalent
 equivalently
 equivalents
 equivocal
+equivocate
+equivocated
+equivocates
+equivocating
 equivocation
 era
 eradicate
@@ -15212,7 +15215,6 @@ erupted
 erupting
 eruption
 eruptions
-eruptive
 erupts
 erythema
 erythrocyte
@@ -16533,6 +16535,7 @@ femme
 femoral
 femtosecond
 femur
+femurs
 fen
 fence
 fenced
@@ -16622,6 +16625,7 @@ fetuses
 feud
 feudal
 feudalism
+feudalist
 feuded
 feuding
 feuds
@@ -17533,7 +17537,6 @@ forecasts
 foreclose
 foreclosed
 foreclosure
-foreclosures
 forefather
 forefathers
 forefinger
@@ -20541,7 +20544,6 @@ hellish
 hello
 hellos
 hells
-helluva
 helm
 helmet
 helmeted
@@ -22186,7 +22188,6 @@ inaccurately
 inaction
 inactivate
 inactivated
-inactivation
 inactive
 inactivity
 inadequacies
@@ -22944,6 +22945,7 @@ inseam
 insect
 insecticide
 insecticides
+insectivore
 insects
 insecure
 insecurities
@@ -27463,6 +27465,7 @@ microsecond
 microseconds
 microstructure
 microsurgery
+microvolt
 microwave
 microwaved
 microwaves
@@ -29897,7 +29900,6 @@ octal
 octane
 octave
 octaves
-octavo
 octet
 octogenarian
 octopus
@@ -30534,7 +30536,10 @@ outlived
 outlook
 outlooks
 outlying
+outmaneuver
 outmaneuvered
+outmaneuvering
+outmaneuvers
 outmatched
 outmoded
 outnumber
@@ -32101,6 +32106,7 @@ persuasion
 persuasions
 persuasive
 persuasively
+persuasiveness
 pert
 pertain
 pertained
@@ -36013,8 +36019,6 @@ recurs
 recursion
 recursive
 recursively
-recurve
-recurved
 recusal
 recuse
 recused
@@ -41680,7 +41684,6 @@ speculating
 speculation
 speculations
 speculative
-speculatively
 speculator
 speculators
 speculum
