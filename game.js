@@ -104,7 +104,7 @@ const RANK_COLORS = ['#8a8781', '#17151a', '#1e6b34', '#1b3a8c',
 const LIFTOFF_BG = '#17151a';
 
 /** Deploy build number — keep in step with the ?v= query in index.html. */
-const BUILD = 26;
+const BUILD = 27;
 
 /** Touch devices get "Tap" wording. */
 const TAP = matchMedia('(pointer: coarse)').matches;
@@ -1358,6 +1358,7 @@ function wireEvents() {
   // focus where it is; the click (and form submit) still fire.
   $('enterbtn').addEventListener('pointerdown', e => e.preventDefault());
   $('hintbtn').addEventListener('pointerdown', e => e.preventDefault());
+  $('floattoggle').addEventListener('pointerdown', e => e.preventDefault());
   $('inp').addEventListener('input', () => {
     const inp = $('inp');
     const clean = inp.value.replace(/[^a-zA-Z]/g, '');   // letters only
