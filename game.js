@@ -104,7 +104,7 @@ const RANK_COLORS = ['#8a8781', '#17151a', '#1e6b34', '#1b3a8c',
 const LIFTOFF_BG = '#17151a';
 
 /** Deploy build number — keep in step with the ?v= query in index.html. */
-const BUILD = 28;
+const BUILD = 29;
 
 /** Touch devices get "Tap" wording. */
 const TAP = matchMedia('(pointer: coarse)').matches;
@@ -415,6 +415,7 @@ function setFloatPlate(show) {
   $('floattoggle').textContent = (show ? 'Hide' : 'Show') + ' score plate';
   store(FLOAT_KEY, show);
   layoutMobileChrome();
+  repaintPlates();
 }
 
 /**
@@ -427,6 +428,710 @@ function layoutMobileChrome() {
   document.documentElement.style.setProperty('--floatbot', (fh + 26) + 'px');
   const extra = $('floatplate').hidden ? 0 : $('floatplate').offsetHeight + 14;
   document.documentElement.style.setProperty('--msgbot', (fh + 24 + extra) + 'px');
+}
+
+/* ================================================================
+ * 7.5 The plate designer (borders, stickers, freehand drawing)
+ *
+ * A saved design decorates every appearance of the score plate: the
+ * hero plate, the mobile floating plate, and the share image. It is
+ * stored in localStorage as three independent parts:
+ *
+ *   { border:   one of BORDER_STYLES (default 'plain'),
+ *     stickers: [{e, x, y, s, r}]  - emoji, center (fractions of the
+ *               plate box), size (fraction of plate width), rotation,
+ *     draw:     PNG data URL of the freehand layer, or null }
+ *
+ * All three render in one shared "design space" of DW x DH (the share
+ * canvas's dimensions), scaled onto whatever surface is being painted.
+ * The design always sits UNDER the plate's text; when a design exists
+ * the text gets a face-colored halo so it stays readable over it.
+ * Border styles draw in the current rank color, so the rank color
+ * progression survives any design. The designer UI is desktop-only
+ * (the button hides in the <=980px regime), but a saved design still
+ * displays on mobile plates.
+ * ================================================================ */
+
+const DESIGN_KEY = 'plates-design';
+const DW = 880, DH = 440;              // design space = share canvas size
+const PLATE_FACE = '#fffaf0';
+const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+
+function normalizeDesign(d) {
+  if (!d || typeof d !== 'object') d = {};
+  return { border: d.border || 'plain',
+           stickers: Array.isArray(d.stickers) ? d.stickers : [],
+           draw: d.draw || null };
+}
+
+let design = normalizeDesign(unstore(DESIGN_KEY, null));
+let drawImg = null;                    // decoded Image of design.draw
+
+function hasDesign(d) {
+  return d.border !== 'plain' || d.stickers.length > 0 || !!d.draw;
+}
+
+/** Decode the saved freehand layer, then repaint everywhere it shows. */
+function loadDrawImg() {
+  drawImg = null;
+  if (!design.draw) { repaintPlates(); return; }
+  const img = new Image();
+  img.onload = () => { drawImg = img; repaintPlates(); };
+  img.src = design.draw;
+}
+
+/** Current rank color (used by plates, borders, and the share image). */
+function rankColor() {
+  return RANK_COLORS[Math.max(0, ranks.findIndex(([n]) => n === rank()))];
+}
+
+function faceColor() { return rank() === 'Liftoff' ? LIFTOFF_BG : PLATE_FACE; }
+
+/* ---- border styles ----
+ * Each style draws along the plate's rounded-rect rim in the rank color.
+ * Geometry comes from the caller: `bw` rim thickness, `inset` path inset,
+ * `r` path corner radius - so one function serves the share image, the
+ * page overlays, and the swatch thumbnails at their native scales. */
+
+const BORDER_STYLES = [
+  ['plain',   'Classic'],
+  ['dashed',  'Dashed'],
+  ['dotted',  'Dotted'],
+  ['double',  'Pinstripe'],
+  ['highway', 'Highway'],
+  ['rope',    'Rope'],
+  ['tread',   'Tire tracks'],
+  ['stars',   'Stars'],
+  ['zigzag',  'Rickrack'],
+];
+
+/** Walk the rounded-rect perimeter clockwise from the top-left straight,
+ *  calling fn(x, y, tangentAngle) roughly every `step` px. */
+function walkBorder(W, H, inset, r, step, fn) {
+  const w = Math.max(0, W - 2 * inset - 2 * r);
+  const h = Math.max(0, H - 2 * inset - 2 * r);
+  const arc = Math.PI * r / 2, L = 2 * w + 2 * h + 4 * arc;
+  const segs = [
+    [w,   t => [inset + r + t, inset, 0]],
+    [arc, t => { const a = -Math.PI / 2 + t / r;
+      return [W - inset - r + Math.cos(a) * r, inset + r + Math.sin(a) * r, a + Math.PI / 2]; }],
+    [h,   t => [W - inset, inset + r + t, Math.PI / 2]],
+    [arc, t => { const a = t / r;
+      return [W - inset - r + Math.cos(a) * r, H - inset - r + Math.sin(a) * r, a + Math.PI / 2]; }],
+    [w,   t => [W - inset - r - t, H - inset, Math.PI]],
+    [arc, t => { const a = Math.PI / 2 + t / r;
+      return [inset + r + Math.cos(a) * r, H - inset - r + Math.sin(a) * r, a + Math.PI / 2]; }],
+    [h,   t => [inset, H - inset - r - t, -Math.PI / 2]],
+    [arc, t => { const a = Math.PI + t / r;
+      return [inset + r + Math.cos(a) * r, inset + r + Math.sin(a) * r, a + Math.PI / 2]; }],
+  ];
+  const n = Math.max(8, Math.round(L / step));
+  for (let i = 0; i < n; i++) {
+    let t = L * i / n;
+    for (const [len, at] of segs) {
+      if (t <= len) { fn(...at(t)); break; }
+      t -= len;
+    }
+  }
+}
+
+function drawBorder(ctx, style, W, H, bw, r, inset, color, face) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  const path = (pad, pr) => {
+    pad = pad || 0;
+    ctx.beginPath();
+    ctx.roundRect(inset + pad, inset + pad,
+                  W - 2 * (inset + pad), H - 2 * (inset + pad),
+                  Math.max(4, pr !== undefined ? pr : r - pad));
+  };
+  if (style === 'dashed') {
+    ctx.lineWidth = bw;
+    ctx.setLineDash([bw * 2.1, bw * 1.5]);
+    path(); ctx.stroke();
+  } else if (style === 'dotted') {
+    ctx.lineWidth = bw;
+    ctx.setLineDash([0, bw * 2.1]);       // round caps turn dashes into dots
+    path(); ctx.stroke();
+  } else if (style === 'double') {
+    ctx.lineWidth = bw * 0.36;
+    path(); ctx.stroke();
+    path(bw * 0.95); ctx.stroke();
+  } else if (style === 'highway') {
+    ctx.lineWidth = bw * 0.5;
+    path(); ctx.stroke();
+    ctx.lineWidth = bw * 0.44;
+    ctx.setLineDash([bw * 1.9, bw * 1.4]);
+    path(bw * 1.1); ctx.stroke();
+  } else if (style === 'rope' || style === 'tread') {
+    ctx.lineWidth = bw;
+    path(); ctx.stroke();
+    // Face-colored ticks across the band: diagonal reads as rope strands,
+    // perpendicular as tire tread.
+    ctx.strokeStyle = face;
+    ctx.lineWidth = bw * 0.32;
+    const tilt = style === 'rope' ? Math.PI / 4 : Math.PI / 2;
+    walkBorder(W, H, inset, r, bw * 0.95, (x, y, a) => {
+      const d = bw * 0.6;
+      ctx.beginPath();
+      ctx.moveTo(x - Math.cos(a + tilt) * d, y - Math.sin(a + tilt) * d);
+      ctx.lineTo(x + Math.cos(a + tilt) * d, y + Math.sin(a + tilt) * d);
+      ctx.stroke();
+    });
+  } else if (style === 'stars') {
+    ctx.font = Math.round(bw * 2.2) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    walkBorder(W, H, inset, r, bw * 3.4, (x, y, a) => {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(a);
+      ctx.fillText('★︎', 0, bw * 0.08);  // VS15: text star, not emoji
+      ctx.restore();
+    });
+  } else if (style === 'zigzag') {
+    ctx.lineWidth = bw * 0.4;
+    const pts = [];
+    let k = 0;
+    walkBorder(W, H, inset + bw * 0.1, r, bw * 1.2, (x, y, a) => {
+      const off = (k++ % 2 ? 1 : -1) * bw * 0.55;
+      pts.push([x + Math.cos(a + Math.PI / 2) * off,
+                y + Math.sin(a + Math.PI / 2) * off]);
+    });
+    if (pts.length % 2) pts.pop();       // even count keeps the seam zigzagging
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    ctx.closePath();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* ---- design compositor ----
+ * Paints a design onto a W x H surface: freehand layer, then stickers, then
+ * the border style. m = {bw, r, inset, clip:{x,y,w,h,r}, color, face,
+ * d?: design (default saved), img?: freehand source (default drawImg;
+ * pass a canvas for the designer's live layer)}. */
+function paintDesign(ctx, W, H, m) {
+  const d = m.d || design;
+  const img = 'img' in m ? m.img : drawImg;
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(m.clip.x, m.clip.y, m.clip.w, m.clip.h, m.clip.r);
+  ctx.clip();
+  if (img) ctx.drawImage(img, 0, 0, W, H);
+  for (const st of d.stickers) {
+    ctx.save();
+    ctx.translate(st.x * W, st.y * H);
+    ctx.rotate(st.r || 0);
+    ctx.font = Math.round(st.s * W) + 'px ' + EMOJI_FONT;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(st.e, 0, 0);
+    ctx.restore();
+  }
+  if (d.border !== 'plain') {
+    drawBorder(ctx, d.border, W, H, m.bw, m.r, m.inset, m.color, m.face);
+  }
+  ctx.restore();
+}
+
+/* ---- page-plate overlays ----
+ * Each on-page .plate gets a canvas layer under its text. A custom border
+ * replaces the plain CSS rim (border-color goes transparent; the layer
+ * draws the styled rim in its place, still in rank color). */
+function repaintPlates() {
+  if (!ranks) return;                    // pre-boot call
+  const on = hasDesign(design);
+  document.querySelectorAll('.plate').forEach(p => {
+    p.classList.toggle('customborder', on && design.border !== 'plain');
+    let cv = p.querySelector(':scope > .designlayer');
+    if (!on) { if (cv) cv.remove(); return; }
+    if (!cv) {
+      cv = document.createElement('canvas');
+      cv.className = 'designlayer';
+      p.prepend(cv);
+    }
+    const rect = p.getBoundingClientRect();
+    if (!rect.width) return;             // hidden (e.g. floating plate)
+    const dpr = window.devicePixelRatio || 1;
+    const W = Math.round(rect.width * dpr), H = Math.round(rect.height * dpr);
+    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+    cv.style.width = rect.width + 'px';
+    cv.style.height = rect.height + 'px';
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0, 0, W, H);
+    const bw = Math.max(6, W * 14 / DW);
+    paintDesign(ctx, W, H, {
+      bw, r: Math.max(6, 16 * dpr - bw / 2), inset: bw / 2 + 1,
+      color: rankColor(), face: faceColor(),
+      clip: { x: 0, y: 0, w: W, h: H, r: 16 * dpr },
+    });
+  });
+}
+
+/* ---- designer state ---- */
+
+let wd = null;                 // working copy of the design while modal open
+let wdCanvas = null, wdCtx = null;   // working freehand layer (DW x DH)
+let dsgnTool = 'border';
+let penColor = '#17151a', penSize = 11, penErase = false;
+let selSticker = -1;
+let previewRank = null;        // rank previewed in the designer
+let penLast = null;            // last freehand point while stroking
+let dragOff = null;            // pointer offset while dragging a sticker
+let trayBuilt = false, libBuilt = false;
+
+const PEN_COLORS = ['#17151a', '#fffaf0', '#a33327', '#c05621', '#c9971f',
+                    '#5f7d2a', '#1a57c2', '#6b3fa0', '#c2185b', '#6d4c2f'];
+
+/** Curated sticker suggestions, pinned above the full library. */
+const SUGGESTED = ['🚗','🚙','🛻','🚐','🏎️','🏍️','🛵','🚲','🚌','🚚','🚜','🚓',
+  '🚒','⛽','🛞','🚦','🚧','🧭','🗺️','🏁','🌵','🌴','🌲','⛰️','🌋','🌅','🌄',
+  '☀️','🌙','⭐','✨','⚡','🌈','☁️','❄️','🔥','🌊','🦅','🐍','🦂','🐢','🐎',
+  '🦌','🐺','🦉','🦋','🍔','🍟','🌭','🍕','🌮','🍩','🍦','☕','🥤','🍒','🎲',
+  '🎵','🎸','🎉','🎊','🏆','👑','💎','😎','🤠','🥳','💀','👽','❤️','💙','💚',
+  '💛','💜','🖤','💥','💫','👍','✌️','🍀','🎯'];
+
+/** Full emoji library (stickers.js) loads only when the designer opens. */
+let stickersLoaded = null;
+function loadStickers() {
+  if (!stickersLoaded) {
+    stickersLoaded = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'stickers.js?v=' + BUILD;
+      s.onload = resolve;
+      s.onerror = () => {
+        stickersLoaded = null;
+        reject(new Error('could not load the sticker library'));
+      };
+      document.head.appendChild(s);
+    });
+  }
+  return stickersLoaded;
+}
+
+/** Share-image painter, parameterized by design so the designer preview and
+ *  the real share canvas render identically. Fonts are preloaded by callers. */
+function paintShareCanvas(ctx, d, img, rankName) {
+  const cv = ctx.canvas, W = cv.width, H = cv.height;
+  const rn = rankName || rank();
+  const ri = Math.max(0, RANKS.findIndex(([n]) => n === rn));
+  const color = RANK_COLORS[ri];
+  const face = rn === 'Liftoff' ? LIFTOFF_BG : PLATE_FACE;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = face;
+  ctx.beginPath(); ctx.roundRect(10, 10, W - 20, H - 20, 44); ctx.fill();
+  if (d.border === 'plain') {
+    ctx.lineWidth = 14;
+    ctx.strokeStyle = color;
+    ctx.beginPath(); ctx.roundRect(10, 10, W - 20, H - 20, 44); ctx.stroke();
+  }
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '600 30px "Atkinson Hyperlegible Next", "Avenir Next", "Segoe UI", sans-serif';
+  try { ctx.letterSpacing = '5px'; } catch (e) { /* older engines */ }
+  // Share image carries the site URL; shrink if the longer line runs tight.
+  const topLine = plateTopText() + ' • PLATESGAME.COM';
+  if (ctx.measureText(topLine).width > W - 90) {
+    ctx.font = '600 26px "Atkinson Hyperlegible Next", "Avenir Next", "Segoe UI", sans-serif';
+    try { ctx.letterSpacing = '4px'; } catch (e) { /* older engines */ }
+  }
+  ctx.fillText(topLine, W / 2, 62);
+  ctx.save();
+  ctx.translate(W / 2, H * 0.56);
+  ctx.scale(1, 1.2);                     // same die-stretch as the page plate
+  // 176px suits a 3-letter plate; longer clues shrink to fit the face.
+  const line = CLUE.toUpperCase() + '-' +
+               String(Math.min(9999, total)).padStart(4, '0');
+  let size = 176;
+  const setFont = () => {
+    ctx.font = size + 'px "License Plate", "Avenir Next", sans-serif';
+    try { ctx.letterSpacing = Math.round(size * 18 / 176) + 'px'; }
+    catch (e) { /* older engines */ }
+  };
+  setFont();
+  const maxW = W - 130;
+  const tw = ctx.measureText(line).width;
+  if (tw > maxW) { size = Math.floor(size * maxW / tw); setFont(); }
+  ctx.fillText(line, 0, 0);
+  ctx.restore();
+  ctx.font = '600 30px "Atkinson Hyperlegible Next", "Avenir Next", "Segoe UI", sans-serif';
+  try { ctx.letterSpacing = '5px'; } catch (e) { /* older engines */ }
+  ctx.fillText((rn + ' • hints used: ' + hintsUsed).toUpperCase(), W / 2, H - 62);
+  try { ctx.letterSpacing = '0px'; } catch (e) { /* older engines */ }
+  // The design paints last: it may cover the text, and that's the fun.
+  if (hasDesign(d)) {
+    paintDesign(ctx, W, H, {
+      bw: 14, r: 44, inset: 10, color, face, d, img,
+      clip: { x: 3, y: 3, w: W - 6, h: H - 6, r: 51 },
+    });
+  }
+}
+
+/* ---- designer UI ---- */
+
+function dsgnCanvas() { return $('dsgncv'); }
+
+/** Repaint the live preview (the share image plus a selection box). */
+function renderPreview() {
+  if (!wd) return;
+  const ctx = dsgnCanvas().getContext('2d');
+  paintShareCanvas(ctx, wd, wdCanvas, previewRank);
+  const st = wd.stickers[selSticker];
+  if (st) {
+    ctx.save();
+    ctx.translate(st.x * DW, st.y * DH);
+    ctx.rotate(st.r || 0);
+    const h = st.s * DW * 0.62;
+    ctx.strokeStyle = '#1a57c2';
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([7, 5]);
+    ctx.strokeRect(-h, -h, 2 * h, 2 * h);
+    ctx.restore();
+  }
+}
+
+function setDsgnTool(t) {
+  dsgnTool = t;
+  document.querySelectorAll('#dsgntabs button').forEach(b =>
+    b.classList.toggle('active', b.dataset.tool === t));
+  document.querySelectorAll('.dsgnpane').forEach(p =>
+    p.classList.toggle('open', p.id === 'pane-' + t));
+  dsgnCanvas().style.cursor = t === 'draw' ? 'crosshair' : 'default';
+  if (t !== 'stickers' && selSticker >= 0) {
+    selSticker = -1;
+    syncStickerCtl();
+    renderPreview();
+  }
+}
+
+function syncStickerCtl() {
+  const st = wd && wd.stickers[selSticker];
+  $('stksize').disabled = $('stkrot').disabled = $('stkdel').disabled = !st;
+  if (st) {
+    $('stksize').value = Math.round(st.s * 100);
+    $('stkrot').value = Math.round((st.r || 0) * 180 / Math.PI);
+  }
+}
+
+function addSticker(e) {
+  const jx = (Math.random() - 0.5) * 0.12, jy = (Math.random() - 0.5) * 0.2;
+  wd.stickers.push({ e, x: 0.5 + jx, y: 0.5 + jy, s: 0.12, r: 0 });
+  selSticker = wd.stickers.length - 1;
+  syncStickerCtl();
+  renderPreview();
+}
+
+function deleteSticker() {
+  if (selSticker < 0) return;
+  wd.stickers.splice(selSticker, 1);
+  selSticker = -1;
+  syncStickerCtl();
+  renderPreview();
+}
+
+/** Border swatch grid, painted in the CURRENT rank color each open. */
+function buildBorderSwatches() {
+  const grid = $('bgrid');
+  grid.innerHTML = '';
+  const rn = previewRank || rank();
+  const ri = Math.max(0, RANKS.findIndex(([n]) => n === rn));
+  const color = RANK_COLORS[ri];
+  const face = rn === 'Liftoff' ? LIFTOFF_BG : PLATE_FACE;
+  for (const [style, label] of BORDER_STYLES) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'bswatch' + (wd.border === style ? ' active' : '');
+    const c = document.createElement('canvas');
+    c.width = 220; c.height = 110;
+    const x = c.getContext('2d');
+    x.fillStyle = face;
+    x.beginPath(); x.roundRect(2, 2, 216, 106, 14); x.fill();
+    if (style === 'plain') {
+      x.lineWidth = 6; x.strokeStyle = color;
+      x.beginPath(); x.roundRect(5, 5, 210, 100, 12); x.stroke();
+    } else {
+      drawBorder(x, style, 220, 110, 6.5, 11, 5, color, face);
+    }
+    b.title = label;
+    b.appendChild(c);
+    b.onclick = () => {
+      wd.border = style;
+      grid.querySelectorAll('.bswatch').forEach(s =>
+        s.classList.toggle('active', s === b));
+      renderPreview();
+    };
+    grid.appendChild(b);
+  }
+}
+
+/** Sticker tray: curated suggestions immediately, full library once loaded. */
+function buildTray() {
+  if (trayBuilt) return;
+  trayBuilt = true;
+  const tray = $('stktray');
+  const addGroup = (name, items) => {
+    const head = document.createElement('div');
+    head.className = 'stkgroup';
+    head.textContent = name;
+    const grid = document.createElement('div');
+    grid.className = 'stkgrid';
+    for (const it of items) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'stk';
+      btn.textContent = typeof it === 'string' ? it : it[0];
+      if (typeof it !== 'string') btn.dataset.n = it[1];
+      grid.appendChild(btn);
+    }
+    tray.append(head, grid);
+    return head;
+  };
+  const sugHead = addGroup('Suggestions', SUGGESTED);
+  sugHead.classList.add('sug');
+  sugHead.nextElementSibling.classList.add('sug');
+  tray.addEventListener('click', e => {
+    const b = e.target.closest('.stk');
+    if (b) addSticker(b.textContent);
+  });
+  loadStickers().then(() => {
+    if (libBuilt) return;
+    libBuilt = true;
+    for (const [name, items] of STICKER_LIB) addGroup(name, items);
+    filterTray();
+  }).catch(err => {
+    const note = document.createElement('div');
+    note.className = 'stkgroup';
+    note.textContent = err.message;
+    tray.appendChild(note);
+  });
+}
+
+/** Search filters the full library; the suggestions row hides meanwhile. */
+function filterTray() {
+  const q = $('stksearch').value.trim().toLowerCase();
+  const tray = $('stktray');
+  tray.querySelectorAll('.sug').forEach(el =>
+    el.classList.toggle('hide', !!q));
+  tray.querySelectorAll('.stkgrid:not(.sug)').forEach(grid => {
+    let any = false;
+    grid.querySelectorAll('.stk').forEach(b => {
+      const hit = !q || (b.dataset.n || '').includes(q);
+      b.classList.toggle('hide', !hit);
+      any = any || hit;
+    });
+    grid.classList.toggle('hide', !any);
+    grid.previousElementSibling.classList.toggle('hide', !any);
+  });
+}
+
+function buildSwatches() {
+  const box = $('swatches');
+  if (box.childElementCount) return;
+  for (const c of PEN_COLORS) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'swatch' + (c === penColor ? ' active' : '');
+    b.style.background = c;
+    b.onclick = () => {
+      penColor = c;
+      penErase = false;
+      box.querySelectorAll('.swatch').forEach(s =>
+        s.classList.toggle('active', s === b));
+      document.querySelectorAll('#penseg button').forEach(s =>
+        s.classList.toggle('active', s.dataset.p === 'pen'));
+    };
+    box.appendChild(b);
+  }
+}
+
+/** Rank chips under the preview: see the design at every rank's colors. */
+function buildRankRow() {
+  const row = $('rankrow');
+  row.innerHTML = '';
+  RANKS.forEach(([name], i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'rankchip' + (name === previewRank ? ' active' : '');
+    b.textContent = name;
+    b.style.setProperty('--rc', RANK_COLORS[i]);
+    b.onclick = () => {
+      previewRank = name;
+      buildRankRow();
+      buildBorderSwatches();
+      renderPreview();
+    };
+    row.appendChild(b);
+  });
+}
+
+async function openDesigner() {
+  wd = { border: design.border,
+         stickers: design.stickers.map(s => Object.assign({}, s)) };
+  previewRank = rank();
+  wdCanvas = document.createElement('canvas');
+  wdCanvas.width = DW; wdCanvas.height = DH;
+  wdCtx = wdCanvas.getContext('2d');
+  if (drawImg) wdCtx.drawImage(drawImg, 0, 0, DW, DH);
+  selSticker = -1;
+  buildTray();
+  buildSwatches();
+  buildBorderSwatches();
+  buildRankRow();
+  syncStickerCtl();
+  setDsgnTool('border');
+  $('stksearch').value = '';
+  filterTray();
+  try { await document.fonts.load('150px "License Plate"'); } catch (e) { /* ok */ }
+  renderPreview();
+  openModal('designmodal');
+}
+
+/** Does the working freehand layer hold any ink at all? */
+function layerHasInk(cv) {
+  const data = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+  for (let i = 3; i < data.length; i += 4) if (data[i]) return true;
+  return false;
+}
+
+function saveDesign() {
+  design = { border: wd.border, stickers: wd.stickers,
+             draw: layerHasInk(wdCanvas) ? wdCanvas.toDataURL('image/png') : null };
+  store(DESIGN_KEY, design);
+  closeModal('designmodal');
+  loadDrawImg();                          // repaints plates once decoded
+}
+
+/* ---- designer pointer interactions ---- */
+
+function dsgnPos(ev) {
+  const r = dsgnCanvas().getBoundingClientRect();
+  return { x: (ev.clientX - r.left) * DW / r.width,
+           y: (ev.clientY - r.top) * DH / r.height };
+}
+
+/** Hit-test stickers under a design-space point, topmost first. */
+function stickerAt(p) {
+  for (let i = wd.stickers.length - 1; i >= 0; i--) {
+    const st = wd.stickers[i];
+    const dx = p.x - st.x * DW, dy = p.y - st.y * DH;
+    const cos = Math.cos(-(st.r || 0)), sin = Math.sin(-(st.r || 0));
+    const lx = dx * cos - dy * sin, ly = dx * sin + dy * cos;
+    const h = st.s * DW * 0.58;
+    if (Math.abs(lx) <= h && Math.abs(ly) <= h) return i;
+  }
+  return -1;
+}
+
+function penStroke(p) {
+  wdCtx.save();
+  wdCtx.lineCap = wdCtx.lineJoin = 'round';
+  wdCtx.strokeStyle = penColor;
+  wdCtx.lineWidth = penErase ? penSize * 2 : penSize;
+  wdCtx.globalCompositeOperation = penErase ? 'destination-out' : 'source-over';
+  wdCtx.beginPath();
+  wdCtx.moveTo(penLast.x, penLast.y);
+  wdCtx.lineTo(p.x, p.y);
+  wdCtx.stroke();
+  wdCtx.restore();
+  penLast = p;
+}
+
+function wireDesigner() {
+  $('designbtn').addEventListener('click', openDesigner);
+  document.querySelectorAll('#dsgntabs button').forEach(b =>
+    b.addEventListener('click', () => setDsgnTool(b.dataset.tool)));
+  $('dsgnsave').addEventListener('click', saveDesign);
+  $('dsgncancel').addEventListener('click', () => closeModal('designmodal'));
+  $('dsgnclearall').addEventListener('click', () => {
+    wd.border = 'plain';
+    wd.stickers = [];
+    wdCtx.clearRect(0, 0, DW, DH);
+    selSticker = -1;
+    syncStickerCtl();
+    buildBorderSwatches();
+    renderPreview();
+  });
+  $('drawclear').addEventListener('click', () => {
+    wdCtx.clearRect(0, 0, DW, DH);
+    renderPreview();
+  });
+  document.querySelectorAll('#brushseg button').forEach(b =>
+    b.addEventListener('click', () => {
+      penSize = +b.dataset.b;
+      document.querySelectorAll('#brushseg button').forEach(s =>
+        s.classList.toggle('active', s === b));
+    }));
+  document.querySelectorAll('#penseg button').forEach(b =>
+    b.addEventListener('click', () => {
+      penErase = b.dataset.p === 'erase';
+      document.querySelectorAll('#penseg button').forEach(s =>
+        s.classList.toggle('active', s === b));
+    }));
+  $('stksize').addEventListener('input', () => {
+    const st = wd.stickers[selSticker];
+    if (st) { st.s = $('stksize').value / 100; renderPreview(); }
+  });
+  $('stkrot').addEventListener('input', () => {
+    const st = wd.stickers[selSticker];
+    if (st) { st.r = $('stkrot').value * Math.PI / 180; renderPreview(); }
+  });
+  $('stkdel').addEventListener('click', deleteSticker);
+  let searchTimer = null;
+  $('stksearch').addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(filterTray, 120);
+  });
+  document.addEventListener('keydown', e => {
+    if ((e.key === 'Delete' || e.key === 'Backspace') &&
+        $('designmodal').classList.contains('open') &&
+        selSticker >= 0 && !/INPUT|TEXTAREA/.test(e.target.tagName)) {
+      e.preventDefault();
+      deleteSticker();
+    }
+  });
+
+  const cv = dsgnCanvas();
+  cv.addEventListener('pointerdown', ev => {
+    if (!wd) return;
+    ev.preventDefault();
+    const p = dsgnPos(ev);
+    if (dsgnTool === 'draw') {
+      penLast = p;
+      penStroke(p);                       // a click leaves a dot
+      cv.setPointerCapture(ev.pointerId);
+      renderPreview();
+    } else if (dsgnTool === 'stickers') {
+      selSticker = stickerAt(p);
+      const st = wd.stickers[selSticker];
+      if (st) {
+        dragOff = { x: p.x - st.x * DW, y: p.y - st.y * DH };
+        cv.setPointerCapture(ev.pointerId);
+      }
+      syncStickerCtl();
+      renderPreview();
+    }
+  });
+  cv.addEventListener('pointermove', ev => {
+    if (!wd) return;
+    if (dsgnTool === 'draw' && penLast) {
+      penStroke(dsgnPos(ev));
+      renderPreview();
+    } else if (dsgnTool === 'stickers' && dragOff && selSticker >= 0) {
+      const p = dsgnPos(ev), st = wd.stickers[selSticker];
+      st.x = Math.min(0.98, Math.max(0.02, (p.x - dragOff.x) / DW));
+      st.y = Math.min(0.96, Math.max(0.04, (p.y - dragOff.y) / DH));
+      renderPreview();
+    }
+  });
+  const up = () => { penLast = null; dragOff = null; };
+  cv.addEventListener('pointerup', up);
+  cv.addEventListener('pointercancel', up);
 }
 
 /* ================================================================
@@ -853,51 +1558,7 @@ function confetti(palette, count) {
  */
 async function drawPlate() {
   try { await document.fonts.load('150px "License Plate"'); } catch (e) { /* draw anyway */ }
-  const cv = $('plateimg');
-  const ctx = cv.getContext('2d');
-  const W = cv.width, H = cv.height;
-  const color = RANK_COLORS[Math.max(0, ranks.findIndex(([n]) => n === rank()))];
-  ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = rank() === 'Liftoff' ? LIFTOFF_BG : '#fffaf0';
-  ctx.beginPath(); ctx.roundRect(10, 10, W - 20, H - 20, 44); ctx.fill();
-  ctx.lineWidth = 14;
-  ctx.strokeStyle = color;
-  ctx.beginPath(); ctx.roundRect(10, 10, W - 20, H - 20, 44); ctx.stroke();
-  ctx.fillStyle = color;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = '600 30px "Atkinson Hyperlegible Next", "Avenir Next", "Segoe UI", sans-serif';
-  try { ctx.letterSpacing = '5px'; } catch (e) { /* older engines */ }
-  // Share image carries the site URL; shrink if the longer line runs tight.
-  const topLine = plateTopText() + ' • PLATESGAME.COM';
-  if (ctx.measureText(topLine).width > W - 90) {
-    ctx.font = '600 26px "Atkinson Hyperlegible Next", "Avenir Next", "Segoe UI", sans-serif';
-    try { ctx.letterSpacing = '4px'; } catch (e) { /* older engines */ }
-  }
-  ctx.fillText(topLine, W / 2, 62);
-  ctx.save();
-  ctx.translate(W / 2, H * 0.56);
-  ctx.scale(1, 1.2);                     // same die-stretch as the page plate
-  // 176px suits a 3-letter plate; longer clues shrink to fit the face.
-  const line = CLUE.toUpperCase() + '-' +
-               String(Math.min(9999, total)).padStart(4, '0');
-  let size = 176;
-  const setFont = () => {
-    ctx.font = size + 'px "License Plate", "Avenir Next", sans-serif';
-    try { ctx.letterSpacing = Math.round(size * 18 / 176) + 'px'; }
-    catch (e) { /* older engines */ }
-  };
-  setFont();
-  const maxW = W - 130;
-  const tw = ctx.measureText(line).width;
-  if (tw > maxW) { size = Math.floor(size * maxW / tw); setFont(); }
-  ctx.fillText(line, 0, 0);
-  ctx.restore();
-  ctx.font = '600 30px "Atkinson Hyperlegible Next", "Avenir Next", "Segoe UI", sans-serif';
-  try { ctx.letterSpacing = '5px'; } catch (e) { /* older engines */ }
-  ctx.fillText((rank() + ' • hints used: ' + hintsUsed).toUpperCase(),
-               W / 2, H - 62);
-  try { ctx.letterSpacing = '0px'; } catch (e) { /* older engines */ }
+  paintShareCanvas($('plateimg').getContext('2d'), design, drawImg);
 }
 
 /** Copy a canvas as PNG to the clipboard, downloading as fallback. */
@@ -1369,9 +2030,9 @@ function render() {
   $('count').textContent = parts.join(' · ');
   $('wlbtn').textContent = decisions.size
     ? 'Manage wordlist (' + decisions.size + ')' : 'Manage wordlist';
-  document.documentElement.style.setProperty('--rankc',
-    RANK_COLORS[Math.max(0, ranks.findIndex(([n]) => n === rank()))]);
+  document.documentElement.style.setProperty('--rankc', rankColor());
   document.body.classList.toggle('liftoff', rank() === 'Liftoff');
+  repaintPlates();
   saveDay();
   renderStats();
 }
@@ -1405,6 +2066,7 @@ function wireEvents() {
 
   // Header
   $('rulesbtn').addEventListener('click', () => openModal('rulesmodal'));
+  wireDesigner();
   // Collapsible Stats / Yesterday sections. Stats content is kept fresh by
   // render(); yesterday's answer list is computed on first expand.
   $('statshead').addEventListener('click', () =>
@@ -1541,6 +2203,7 @@ function wireEvents() {
   window.addEventListener('resize', () => {
     updateColumns();
     if (tripPts) { buildTrip(); renderTrip(); }
+    repaintPlates();
   });
   new ResizeObserver(() => {
     if (tripPts) { buildTrip(); renderTrip(); }
@@ -1554,6 +2217,7 @@ function boot() {
   $('welcomelogo').src = document.querySelector('.logo').src;
   wireEvents();
   goDaily();
+  loadDrawImg();
 }
 
 boot();

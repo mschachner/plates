@@ -207,6 +207,16 @@
                 color:var(--ink); background:rgba(255, 250, 240, .62);
                 border-radius:12px; }
   .plate:hover .platecover, .platecover.show { opacity:1; }
+  /* Custom design layer: a canvas under the plate's text, covering the
+     plate including its border box (the layer draws styled rims itself). */
+  /* The design paints over everything but the hover cover: covering the
+     text and score with stickers or scribbles is allowed, even encouraged. */
+  .designlayer { position:absolute; inset:calc(-1*var(--plate-bw));
+                 border-radius:16px; pointer-events:none; z-index:1; }
+  .platecover { z-index:2; }
+  /* A styled border replaces the plain CSS rim (drawn on the layer instead,
+     still in the rank color). */
+  .plate.customborder { border-color:transparent; }
   .odo { display:inline-flex; }
   .digit { display:inline-block; height:1em; overflow:hidden; }
   .reel { display:block; transition:transform .55s cubic-bezier(.2,.75,.25,1); }
@@ -392,6 +402,94 @@
   .cword.adding b { color:var(--good); }
   .rword.removed { text-decoration:line-through; color:var(--bad); }
   .rword.removed b { color:var(--bad); }
+/* ---- 12. plate designer ---- */
+  .modal.designm { max-width:1240px; width:min(1240px, 96vw);
+                   height:min(820px, 92vh); display:flex; flex-direction:column;
+                   overflow:hidden; padding:26px 32px 24px; }
+  .designm h2 { flex:none; }
+  .dsgnlayout { display:grid; grid-template-columns:minmax(0,58fr) minmax(0,42fr);
+                gap:0 30px; flex:1; min-height:0; }
+  .dsgnleft { display:flex; flex-direction:column; min-width:0; min-height:0; }
+  #dsgncv { width:100%; height:auto; display:block; touch-action:none;
+            border-radius:14px; }
+  .rankrow { display:flex; gap:6px; flex-wrap:wrap; justify-content:center;
+             margin-top:12px; }
+  .rankchip { background:none; border:1.5px solid var(--hair); color:var(--muted);
+              border-radius:999px; font-size:12.5px; padding:5px 12px;
+              cursor:pointer; }
+  .rankchip:hover { border-color:var(--rc); color:var(--rc); }
+  .rankchip.active { background:var(--rc); border-color:var(--rc);
+                     color:var(--accent-ink); font-weight:700; }
+  .dsgnfoot { display:flex; gap:10px; align-items:center; margin-top:auto;
+              padding-top:14px; }
+  .dsgnspacer { flex:1; }
+  .dsgnfoot button { background:none; color:var(--ink);
+                     border:1px solid var(--hair); font-size:14px;
+                     padding:9px 18px; }
+  .dsgnfoot button:hover { border-color:var(--ink); }
+  .dsgnfoot button.primary { background:var(--accent); color:var(--accent-ink);
+                             border-color:var(--accent); }
+  .dsgnfoot button.primary:hover { border-color:var(--accent); }
+  .dsgnright { display:flex; flex-direction:column; min-width:0; min-height:0; }
+  .dsgntabs { display:flex; border:1px solid var(--hair);
+              border-radius:var(--radius); overflow:hidden; flex:none; }
+  .dsgntabs button { flex:1; border:none; border-radius:0; background:none;
+                     color:var(--muted); font-size:14.5px; padding:10px 0; }
+  .dsgntabs button.active { background:var(--accent); color:var(--accent-ink); }
+  .dsgnpane { display:none; flex-direction:column; flex:1; min-height:0;
+              padding-top:14px; }
+  .dsgnpane.open { display:flex; }
+  /* Border swatches */
+  .bgrid { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px;
+           overflow-y:auto; padding:2px; align-content:start; }
+  .bswatch { display:block; background:none; border:2px solid transparent;
+             border-radius:12px; padding:6px; cursor:pointer; }
+  .bswatch canvas { width:100%; height:auto; display:block; border-radius:8px; }
+  .bswatch:hover { border-color:var(--hair); }
+  .bswatch.active { border-color:var(--accent); }
+  /* Sticker controls + tray */
+  .stkctl { display:flex; gap:14px; align-items:center; flex-wrap:wrap;
+            flex:none; margin-bottom:10px; }
+  .stkctl label { display:inline-flex; gap:8px; align-items:center;
+                  font-size:13px; color:var(--muted); }
+  .stkctl input[type=range] { width:110px; accent-color:var(--accent); }
+  .stkctl button { background:none; color:var(--bad);
+                   border:1px solid var(--hair); font-size:13px;
+                   padding:6px 14px; }
+  .stkctl button:hover:not(:disabled) { border-color:var(--bad); }
+  .stkctl button:disabled { opacity:.4; cursor:default; }
+  #stksearch { flex:none; width:100%; text-align:left; text-transform:none;
+               letter-spacing:normal; font-size:15px; padding:9px 12px;
+               margin-bottom:10px; }
+  .stktray { flex:1; overflow-y:auto; min-height:0; padding-right:4px; }
+  .stkgroup { font-size:12px; font-weight:700; letter-spacing:.08em;
+              text-transform:uppercase; color:var(--muted); margin:12px 0 6px; }
+  .stkgroup:first-child { margin-top:0; }
+  .stkgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(38px, 1fr));
+             gap:2px; }
+  .stk { background:none; border:none; border-radius:8px; font-size:24px;
+         line-height:1.3; padding:4px 0; cursor:pointer;
+         font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif; }
+  .stk:hover { background:var(--chip); }
+  .stk.hide, .stkgroup.hide, .stkgrid.hide { display:none; }
+  /* Drawing tools */
+  .swatches { display:flex; gap:8px; flex-wrap:wrap; flex:none;
+              margin-bottom:12px; }
+  .swatch { width:32px; height:32px; border-radius:50%; cursor:pointer;
+            border:2.5px solid var(--hair); padding:0; }
+  .swatch.active { border-color:var(--ink);
+                   box-shadow:0 0 0 2px var(--card), 0 0 0 4px var(--accent); }
+  .drawrow { display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+             flex:none; margin-bottom:12px; }
+  .drawrow > button { background:none; color:var(--ink);
+                      border:1px solid var(--hair); font-size:13px;
+                      padding:8px 14px; }
+  .drawrow > button:hover { border-color:var(--ink); }
+  @media (max-width: 1020px) {
+    .dsgnlayout { grid-template-columns:1fr; grid-template-rows:auto 1fr;
+                  gap:14px 0; }
+  }
+
 @media (min-width: 1401px) {
     .playcard { flex-direction:row; align-items:stretch; gap:calc(26px*var(--sp)); }
     /* Wide enough that the longest enlarged label fits inside the rail column
@@ -412,6 +510,7 @@
     .playmain { width:100%; }
     .tiles { gap:26px; }
     .sname { display:none; }
+    #designbtn { display:none; }
     .sname.current { display:block; font-size:14px; }
     .page { padding-bottom:130px; }
     /* Header stacks on phones: logo row, then the links row beneath. */
