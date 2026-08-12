@@ -14166,6 +14166,7 @@ effortlessly
 efforts
 effusion
 effusive
+effusively
 egalitarian
 egalitarianism
 egg
@@ -15143,11 +15144,16 @@ equitably
 equities
 equity
 equivalence
+equivalences
 equivalency
 equivalent
 equivalently
 equivalents
 equivocal
+equivocate
+equivocated
+equivocates
+equivocating
 equivocation
 era
 eradicate
@@ -15212,7 +15218,6 @@ erupted
 erupting
 eruption
 eruptions
-eruptive
 erupts
 erythema
 erythrocyte
@@ -20542,7 +20547,6 @@ hellish
 hello
 hellos
 hells
-helluva
 helm
 helmet
 helmeted
@@ -30535,7 +30539,10 @@ outlived
 outlook
 outlooks
 outlying
+outmaneuver
 outmaneuvered
+outmaneuvering
+outmaneuvers
 outmatched
 outmoded
 outnumber
@@ -32102,6 +32109,7 @@ persuasion
 persuasions
 persuasive
 persuasively
+persuasiveness
 pert
 pertain
 pertained
@@ -36014,8 +36022,6 @@ recurs
 recursion
 recursive
 recursively
-recurve
-recurved
 recusal
 recuse
 recused
@@ -41681,7 +41687,6 @@ speculating
 speculation
 speculations
 speculative
-speculatively
 speculator
 speculators
 speculum
