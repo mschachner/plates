@@ -17533,7 +17533,6 @@ forecasts
 foreclose
 foreclosed
 foreclosure
-foreclosures
 forefather
 forefathers
 forefinger
