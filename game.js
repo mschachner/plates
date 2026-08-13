@@ -681,11 +681,12 @@ function repaintPlates() {
       const ctx = cv.getContext('2d');
       ctx.clearRect(0, 0, W, H);
       const bw = Math.max(6, W * 14 / DW);
+      const R = W * 0.025;               // matches the plate's CSS radius
       paintDesign(ctx, W, H, {
         layer, img: layer === 'front' ? drawImgF : drawImg,
-        bw, r: Math.max(6, 16 * dpr - bw / 2), inset: bw / 2 + 1,
+        bw, r: Math.max(4, R - bw / 2 - 1), inset: bw / 2 + 1,
         color: rankColor(), face: faceColor(),
-        clip: { x: 0, y: 0, w: W, h: H, r: 16 * dpr },
+        clip: { x: 0, y: 0, w: W, h: H, r: R },
       });
     }
   });
@@ -743,18 +744,23 @@ function paintShareCanvas(ctx, d, imgs, rankName) {
   const color = RANK_COLORS[ri];
   const face = rn === 'Liftoff' ? LIFTOFF_BG : PLATE_FACE;
   const designed = hasDesign(d);
+  // Geometry mirrors the page plate so designs line up exactly: corner
+  // radius is 2.5% of width (the CSS plate radius), the rim stroke spans
+  // insets 3..17 (the page's 4px border at this scale, with breathing room).
+  const R = Math.round(W * 0.025);       // outer corner radius
+  const PR = Math.max(6, R - 7);         // radius at the stroke path (inset 10)
   const pass = (layer, img) => paintDesign(ctx, W, H, {
-    layer, img, bw: 14, r: 44, inset: 10, color, face, d,
-    clip: { x: 3, y: 3, w: W - 6, h: H - 6, r: 51 },
+    layer, img, bw: 14, r: PR, inset: 10, color, face, d,
+    clip: { x: 3, y: 3, w: W - 6, h: H - 6, r: R },
   });
   ctx.clearRect(0, 0, W, H);
   ctx.fillStyle = face;
-  ctx.beginPath(); ctx.roundRect(10, 10, W - 20, H - 20, 44); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(10, 10, W - 20, H - 20, PR); ctx.fill();
   if (designed) pass('behind', imgs && imgs.b);
   if (d.border === 'plain') {
     ctx.lineWidth = 14;
     ctx.strokeStyle = color;
-    ctx.beginPath(); ctx.roundRect(10, 10, W - 20, H - 20, 44); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(10, 10, W - 20, H - 20, PR); ctx.stroke();
   }
   ctx.fillStyle = color;
   ctx.textAlign = 'center';
@@ -767,21 +773,22 @@ function paintShareCanvas(ctx, d, imgs, rankName) {
     ctx.font = '600 26px "Atkinson Hyperlegible Next", "Avenir Next", "Segoe UI", sans-serif';
     try { ctx.letterSpacing = '4px'; } catch (e) { /* older engines */ }
   }
-  ctx.fillText(topLine, W / 2, 62);
+  ctx.fillText(topLine, W / 2, Math.round(H * 0.117));
   ctx.save();
-  ctx.translate(W / 2, H * 0.56);
+  ctx.translate(W / 2, H * 0.559);
   ctx.scale(1, 1.2);                     // same die-stretch as the page plate
-  // 176px suits a 3-letter plate; longer clues shrink to fit the face.
   const line = CLUE.toUpperCase() + '-' +
                String(Math.min(9999, total)).padStart(4, '0');
-  let size = 176;
+  // Same size rule as the page plate's --pline-size (percent of the plate's
+  // content width), so the line lands where the designer placed things.
+  let size = Math.round((W - 13) * (21.5 * 8 / (CLUE.length + 5)) / 100);
   const setFont = () => {
     ctx.font = size + 'px "License Plate", "Avenir Next", sans-serif';
-    try { ctx.letterSpacing = Math.round(size * 18 / 176) + 'px'; }
+    try { ctx.letterSpacing = Math.round(size * 0.1) + 'px'; }
     catch (e) { /* older engines */ }
   };
   setFont();
-  const maxW = W - 130;
+  const maxW = W - 20;                   // safety only; never triggers on 3-4
   const tw = ctx.measureText(line).width;
   if (tw > maxW) { size = Math.floor(size * maxW / tw); setFont(); }
   ctx.fillText(line, 0, 0);
@@ -791,7 +798,7 @@ function paintShareCanvas(ctx, d, imgs, rankName) {
   // A rankName override marks a designer preview: brand it "(sample)" so a
   // screenshot of the preview can't pass for a real shared plate.
   ctx.fillText((rn + (rankName ? ' (sample)' : '') + ' • hints used: ' +
-                hintsUsed).toUpperCase(), W / 2, H - 62);
+                hintsUsed).toUpperCase(), W / 2, Math.round(H * 0.879));
   try { ctx.letterSpacing = '0px'; } catch (e) { /* older engines */ }
   // Front elements paint last: they may cover the text, and that's the fun.
   if (designed) pass('front', imgs && imgs.f);
@@ -880,12 +887,12 @@ function buildBorderSwatches() {
     c.width = 220; c.height = 110;
     const x = c.getContext('2d');
     x.fillStyle = face;
-    x.beginPath(); x.roundRect(2, 2, 216, 106, 14); x.fill();
+    x.beginPath(); x.roundRect(2, 2, 216, 106, 6); x.fill();
     if (style === 'plain') {
       x.lineWidth = 6; x.strokeStyle = color;
-      x.beginPath(); x.roundRect(5, 5, 210, 100, 12); x.stroke();
+      x.beginPath(); x.roundRect(5, 5, 210, 100, 4); x.stroke();
     } else {
-      drawBorder(x, style, 220, 110, 6.5, 11, 5, color, face);
+      drawBorder(x, style, 220, 110, 6.5, 4, 5, color, face);
     }
     b.title = label;
     b.appendChild(c);
