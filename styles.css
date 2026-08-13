@@ -209,11 +209,15 @@
   .plate:hover .platecover, .platecover.show { opacity:1; }
   /* Custom design layer: a canvas under the plate's text, covering the
      plate including its border box (the layer draws styled rims itself). */
-  /* The design paints over everything but the hover cover: covering the
-     text and score with stickers or scribbles is allowed, even encouraged. */
+  /* Two design layers sandwich the plate text: elements can sit behind it
+     or cover it (covering the score with stickers is allowed, even
+     encouraged). Only the hover cover stays above everything. */
   .designlayer { position:absolute; inset:calc(-1*var(--plate-bw));
-                 border-radius:16px; pointer-events:none; z-index:1; }
-  .platecover { z-index:2; }
+                 border-radius:16px; pointer-events:none; }
+  .designlayer.behind { z-index:0; }
+  .plate .ptop, .plate .pbot, .plate .pline { z-index:1; }
+  .designlayer.front { z-index:2; }
+  .platecover { z-index:3; }
   /* A styled border replaces the plain CSS rim (drawn on the layer instead,
      still in the rank color). */
   .plate.customborder { border-color:transparent; }
@@ -453,11 +457,12 @@
   .stkctl label { display:inline-flex; gap:8px; align-items:center;
                   font-size:13px; color:var(--muted); }
   .stkctl input[type=range] { width:110px; accent-color:var(--accent); }
-  .stkctl button { background:none; color:var(--bad);
-                   border:1px solid var(--hair); font-size:13px;
-                   padding:6px 14px; }
-  .stkctl button:hover:not(:disabled) { border-color:var(--bad); }
-  .stkctl button:disabled { opacity:.4; cursor:default; }
+  .stkctl .seg button:disabled { opacity:.4; cursor:default; }
+  .stkctl > button { background:none; color:var(--bad);
+                     border:1px solid var(--hair); font-size:13px;
+                     padding:6px 14px; }
+  .stkctl > button:hover:not(:disabled) { border-color:var(--bad); }
+  .stkctl > button:disabled { opacity:.4; cursor:default; }
   #stksearch { flex:none; width:100%; text-align:left; text-transform:none;
                letter-spacing:normal; font-size:15px; padding:9px 12px;
                margin-bottom:10px; }

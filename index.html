@@ -235,6 +235,9 @@
             <div class="stkctl">
               <label>Size <input type="range" id="stksize" min="4" max="50" value="12" disabled></label>
               <label>Spin <input type="range" id="stkrot" min="-180" max="180" value="0" disabled></label>
+              <span class="seg" id="stklayer">
+                <button type="button" data-l="front" disabled>In front</button><button type="button" data-l="behind" disabled>Behind text</button>
+              </span>
               <button type="button" id="stkdel" disabled>Delete</button>
             </div>
             <input id="stksearch" placeholder="Search stickers&hellip;" autocomplete="off"
@@ -249,6 +252,9 @@
               </span>
               <span class="seg" id="penseg">
                 <button type="button" data-p="pen" class="active">Draw</button><button type="button" data-p="erase">Erase</button>
+              </span>
+              <span class="seg" id="layerseg">
+                <button type="button" data-l="behind" class="active">Behind text</button><button type="button" data-l="front">In front</button>
               </span>
               <button type="button" id="drawclear">Clear drawing</button>
             </div>

@@ -438,9 +438,12 @@ function layoutMobileChrome() {
  * stored in localStorage as three independent parts:
  *
  *   { border:   one of BORDER_STYLES (default 'plain'),
- *     stickers: [{e, x, y, s, r}]  - emoji, center (fractions of the
+ *     stickers: [{e, x, y, s, r, f}] - emoji, center (fractions of the
  *               plate box), size (fraction of plate width), rotation,
- *     draw:     PNG data URL of the freehand layer, or null }
+ *               f: 0 renders behind the plate text, otherwise in front,
+ *     draw:     PNG data URL of the behind-the-text freehand layer,
+ *     drawF:    PNG data URL of the in-front freehand layer (each null
+ *               when empty) }
  *
  * All three render in one shared "design space" of DW x DH (the share
  * canvas's dimensions), scaled onto whatever surface is being painted.
@@ -461,23 +464,29 @@ function normalizeDesign(d) {
   if (!d || typeof d !== 'object') d = {};
   return { border: d.border || 'plain',
            stickers: Array.isArray(d.stickers) ? d.stickers : [],
-           draw: d.draw || null };
+           draw: d.draw || null, drawF: d.drawF || null };
 }
 
 let design = normalizeDesign(unstore(DESIGN_KEY, null));
-let drawImg = null;                    // decoded Image of design.draw
+let drawImg = null;                    // decoded Image of design.draw (behind)
+let drawImgF = null;                   // decoded Image of design.drawF (front)
 
 function hasDesign(d) {
-  return d.border !== 'plain' || d.stickers.length > 0 || !!d.draw;
+  return d.border !== 'plain' || d.stickers.length > 0 || !!d.draw || !!d.drawF;
 }
 
-/** Decode the saved freehand layer, then repaint everywhere it shows. */
+/** Decode the saved freehand layers, then repaint everywhere they show. */
 function loadDrawImg() {
-  drawImg = null;
-  if (!design.draw) { repaintPlates(); return; }
-  const img = new Image();
-  img.onload = () => { drawImg = img; repaintPlates(); };
-  img.src = design.draw;
+  drawImg = drawImgF = null;
+  const load = (url, set) => {
+    if (!url) return;
+    const img = new Image();
+    img.onload = () => { set(img); repaintPlates(); };
+    img.src = url;
+  };
+  load(design.draw, i => { drawImg = i; });
+  load(design.drawF, i => { drawImgF = i; });
+  repaintPlates();
 }
 
 /** Current rank color (used by plates, borders, and the share image). */
@@ -610,20 +619,26 @@ function drawBorder(ctx, style, W, H, bw, r, inset, color, face) {
   ctx.restore();
 }
 
+/** Does this sticker render in front of the text? (missing f = front) */
+function inFront(st) { return st.f !== 0; }
+
 /* ---- design compositor ----
- * Paints a design onto a W x H surface: freehand layer, then stickers, then
- * the border style. m = {bw, r, inset, clip:{x,y,w,h,r}, color, face,
- * d?: design (default saved), img?: freehand source (default drawImg;
- * pass a canvas for the designer's live layer)}. */
+ * Paints ONE layer of a design onto a W x H surface. m = {layer: 'behind'
+ * or 'front', img: that layer's freehand source (Image or canvas, may be
+ * null), bw, r, inset, clip:{x,y,w,h,r}, color, face, d?: design (default
+ * saved)}. The behind pass carries its freehand layer and behind-stickers;
+ * the front pass carries its freehand layer, front-stickers, and the
+ * border style. */
 function paintDesign(ctx, W, H, m) {
   const d = m.d || design;
-  const img = 'img' in m ? m.img : drawImg;
+  const front = m.layer === 'front';
   ctx.save();
   ctx.beginPath();
   ctx.roundRect(m.clip.x, m.clip.y, m.clip.w, m.clip.h, m.clip.r);
   ctx.clip();
-  if (img) ctx.drawImage(img, 0, 0, W, H);
+  if (m.img) ctx.drawImage(m.img, 0, 0, W, H);
   for (const st of d.stickers) {
+    if (inFront(st) !== front) continue;
     ctx.save();
     ctx.translate(st.x * W, st.y * H);
     ctx.rotate(st.r || 0);
@@ -633,7 +648,7 @@ function paintDesign(ctx, W, H, m) {
     ctx.fillText(st.e, 0, 0);
     ctx.restore();
   }
-  if (d.border !== 'plain') {
+  if (front && d.border !== 'plain') {
     drawBorder(ctx, d.border, W, H, m.bw, m.r, m.inset, m.color, m.face);
   }
   ctx.restore();
@@ -648,37 +663,42 @@ function repaintPlates() {
   const on = hasDesign(design);
   document.querySelectorAll('.plate').forEach(p => {
     p.classList.toggle('customborder', on && design.border !== 'plain');
-    let cv = p.querySelector(':scope > .designlayer');
-    if (!on) { if (cv) cv.remove(); return; }
-    if (!cv) {
-      cv = document.createElement('canvas');
-      cv.className = 'designlayer';
-      p.prepend(cv);
+    for (const layer of ['behind', 'front']) {
+      let cv = p.querySelector(':scope > .designlayer.' + layer);
+      if (!on) { if (cv) cv.remove(); continue; }
+      if (!cv) {
+        cv = document.createElement('canvas');
+        cv.className = 'designlayer ' + layer;
+        p.prepend(cv);
+      }
+      const rect = p.getBoundingClientRect();
+      if (!rect.width) continue;         // hidden (e.g. floating plate)
+      const dpr = window.devicePixelRatio || 1;
+      const W = Math.round(rect.width * dpr), H = Math.round(rect.height * dpr);
+      if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+      cv.style.width = rect.width + 'px';
+      cv.style.height = rect.height + 'px';
+      const ctx = cv.getContext('2d');
+      ctx.clearRect(0, 0, W, H);
+      const bw = Math.max(6, W * 14 / DW);
+      paintDesign(ctx, W, H, {
+        layer, img: layer === 'front' ? drawImgF : drawImg,
+        bw, r: Math.max(6, 16 * dpr - bw / 2), inset: bw / 2 + 1,
+        color: rankColor(), face: faceColor(),
+        clip: { x: 0, y: 0, w: W, h: H, r: 16 * dpr },
+      });
     }
-    const rect = p.getBoundingClientRect();
-    if (!rect.width) return;             // hidden (e.g. floating plate)
-    const dpr = window.devicePixelRatio || 1;
-    const W = Math.round(rect.width * dpr), H = Math.round(rect.height * dpr);
-    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
-    cv.style.width = rect.width + 'px';
-    cv.style.height = rect.height + 'px';
-    const ctx = cv.getContext('2d');
-    ctx.clearRect(0, 0, W, H);
-    const bw = Math.max(6, W * 14 / DW);
-    paintDesign(ctx, W, H, {
-      bw, r: Math.max(6, 16 * dpr - bw / 2), inset: bw / 2 + 1,
-      color: rankColor(), face: faceColor(),
-      clip: { x: 0, y: 0, w: W, h: H, r: 16 * dpr },
-    });
   });
 }
 
 /* ---- designer state ---- */
 
 let wd = null;                 // working copy of the design while modal open
-let wdCanvas = null, wdCtx = null;   // working freehand layer (DW x DH)
+let wdCanvas = null, wdCtx = null;     // behind-the-text freehand layer
+let wdCanvasF = null, wdCtxF = null;   // in-front freehand layer
 let dsgnTool = 'border';
 let penColor = '#17151a', penSize = 11, penErase = false;
+let penLayer = 'behind';       // which freehand layer the pen touches
 let selSticker = -1;
 let previewRank = null;        // rank previewed in the designer
 let penLast = null;            // last freehand point while stroking
@@ -716,15 +736,21 @@ function loadStickers() {
 
 /** Share-image painter, parameterized by design so the designer preview and
  *  the real share canvas render identically. Fonts are preloaded by callers. */
-function paintShareCanvas(ctx, d, img, rankName) {
+function paintShareCanvas(ctx, d, imgs, rankName) {
   const cv = ctx.canvas, W = cv.width, H = cv.height;
   const rn = rankName || rank();
   const ri = Math.max(0, RANKS.findIndex(([n]) => n === rn));
   const color = RANK_COLORS[ri];
   const face = rn === 'Liftoff' ? LIFTOFF_BG : PLATE_FACE;
+  const designed = hasDesign(d);
+  const pass = (layer, img) => paintDesign(ctx, W, H, {
+    layer, img, bw: 14, r: 44, inset: 10, color, face, d,
+    clip: { x: 3, y: 3, w: W - 6, h: H - 6, r: 51 },
+  });
   ctx.clearRect(0, 0, W, H);
   ctx.fillStyle = face;
   ctx.beginPath(); ctx.roundRect(10, 10, W - 20, H - 20, 44); ctx.fill();
+  if (designed) pass('behind', imgs && imgs.b);
   if (d.border === 'plain') {
     ctx.lineWidth = 14;
     ctx.strokeStyle = color;
@@ -767,13 +793,8 @@ function paintShareCanvas(ctx, d, img, rankName) {
   ctx.fillText((rn + (rankName ? ' (sample)' : '') + ' • hints used: ' +
                 hintsUsed).toUpperCase(), W / 2, H - 62);
   try { ctx.letterSpacing = '0px'; } catch (e) { /* older engines */ }
-  // The design paints last: it may cover the text, and that's the fun.
-  if (hasDesign(d)) {
-    paintDesign(ctx, W, H, {
-      bw: 14, r: 44, inset: 10, color, face, d, img,
-      clip: { x: 3, y: 3, w: W - 6, h: H - 6, r: 51 },
-    });
-  }
+  // Front elements paint last: they may cover the text, and that's the fun.
+  if (designed) pass('front', imgs && imgs.f);
 }
 
 /* ---- designer UI ---- */
@@ -784,7 +805,7 @@ function dsgnCanvas() { return $('dsgncv'); }
 function renderPreview() {
   if (!wd) return;
   const ctx = dsgnCanvas().getContext('2d');
-  paintShareCanvas(ctx, wd, wdCanvas, previewRank);
+  paintShareCanvas(ctx, wd, { b: wdCanvas, f: wdCanvasF }, previewRank);
   const st = wd.stickers[selSticker];
   if (st) {
     ctx.save();
@@ -816,6 +837,11 @@ function setDsgnTool(t) {
 function syncStickerCtl() {
   const st = wd && wd.stickers[selSticker];
   $('stksize').disabled = $('stkrot').disabled = $('stkdel').disabled = !st;
+  document.querySelectorAll('#stklayer button').forEach(b => {
+    b.disabled = !st;
+    b.classList.toggle('active',
+      !!st && (b.dataset.l === 'front') === inFront(st));
+  });
   if (st) {
     $('stksize').value = Math.round(st.s * 100);
     $('stkrot').value = Math.round((st.r || 0) * 180 / Math.PI);
@@ -824,7 +850,7 @@ function syncStickerCtl() {
 
 function addSticker(e) {
   const jx = (Math.random() - 0.5) * 0.12, jy = (Math.random() - 0.5) * 0.2;
-  wd.stickers.push({ e, x: 0.5 + jx, y: 0.5 + jy, s: 0.12, r: 0 });
+  wd.stickers.push({ e, x: 0.5 + jx, y: 0.5 + jy, s: 0.12, r: 0, f: 1 });
   selSticker = wd.stickers.length - 1;
   syncStickerCtl();
   renderPreview();
@@ -981,6 +1007,13 @@ async function openDesigner() {
   wdCanvas.width = DW; wdCanvas.height = DH;
   wdCtx = wdCanvas.getContext('2d');
   if (drawImg) wdCtx.drawImage(drawImg, 0, 0, DW, DH);
+  wdCanvasF = document.createElement('canvas');
+  wdCanvasF.width = DW; wdCanvasF.height = DH;
+  wdCtxF = wdCanvasF.getContext('2d');
+  if (drawImgF) wdCtxF.drawImage(drawImgF, 0, 0, DW, DH);
+  penLayer = 'behind';
+  document.querySelectorAll('#layerseg button').forEach(b =>
+    b.classList.toggle('active', b.dataset.l === 'behind'));
   selSticker = -1;
   buildTray();
   buildSwatches();
@@ -1004,7 +1037,8 @@ function layerHasInk(cv) {
 
 function saveDesign() {
   design = { border: wd.border, stickers: wd.stickers,
-             draw: layerHasInk(wdCanvas) ? wdCanvas.toDataURL('image/png') : null };
+             draw: layerHasInk(wdCanvas) ? wdCanvas.toDataURL('image/png') : null,
+             drawF: layerHasInk(wdCanvasF) ? wdCanvasF.toDataURL('image/png') : null };
   store(DESIGN_KEY, design);
   closeModal('designmodal');
   loadDrawImg();                          // repaints plates once decoded
@@ -1018,30 +1052,37 @@ function dsgnPos(ev) {
            y: (ev.clientY - r.top) * DH / r.height };
 }
 
-/** Hit-test stickers under a design-space point, topmost first. */
+/** Hit-test stickers under a design-space point, topmost first (front
+ *  layer beats behind layer, later additions beat earlier ones). */
 function stickerAt(p) {
-  for (let i = wd.stickers.length - 1; i >= 0; i--) {
+  const hit = i => {
     const st = wd.stickers[i];
     const dx = p.x - st.x * DW, dy = p.y - st.y * DH;
     const cos = Math.cos(-(st.r || 0)), sin = Math.sin(-(st.r || 0));
     const lx = dx * cos - dy * sin, ly = dx * sin + dy * cos;
     const h = st.s * DW * 0.58;
-    if (Math.abs(lx) <= h && Math.abs(ly) <= h) return i;
+    return Math.abs(lx) <= h && Math.abs(ly) <= h;
+  };
+  for (const front of [true, false]) {
+    for (let i = wd.stickers.length - 1; i >= 0; i--) {
+      if (inFront(wd.stickers[i]) === front && hit(i)) return i;
+    }
   }
   return -1;
 }
 
 function penStroke(p) {
-  wdCtx.save();
-  wdCtx.lineCap = wdCtx.lineJoin = 'round';
-  wdCtx.strokeStyle = penColor;
-  wdCtx.lineWidth = penErase ? penSize * 2 : penSize;
-  wdCtx.globalCompositeOperation = penErase ? 'destination-out' : 'source-over';
-  wdCtx.beginPath();
-  wdCtx.moveTo(penLast.x, penLast.y);
-  wdCtx.lineTo(p.x, p.y);
-  wdCtx.stroke();
-  wdCtx.restore();
+  const c = penLayer === 'front' ? wdCtxF : wdCtx;
+  c.save();
+  c.lineCap = c.lineJoin = 'round';
+  c.strokeStyle = penColor;
+  c.lineWidth = penErase ? penSize * 2 : penSize;
+  c.globalCompositeOperation = penErase ? 'destination-out' : 'source-over';
+  c.beginPath();
+  c.moveTo(penLast.x, penLast.y);
+  c.lineTo(p.x, p.y);
+  c.stroke();
+  c.restore();
   penLast = p;
 }
 
@@ -1055,6 +1096,7 @@ function wireDesigner() {
     wd.border = 'plain';
     wd.stickers = [];
     wdCtx.clearRect(0, 0, DW, DH);
+    wdCtxF.clearRect(0, 0, DW, DH);
     selSticker = -1;
     syncStickerCtl();
     buildBorderSwatches();
@@ -1062,8 +1104,23 @@ function wireDesigner() {
   });
   $('drawclear').addEventListener('click', () => {
     wdCtx.clearRect(0, 0, DW, DH);
+    wdCtxF.clearRect(0, 0, DW, DH);
     renderPreview();
   });
+  document.querySelectorAll('#layerseg button').forEach(b =>
+    b.addEventListener('click', () => {
+      penLayer = b.dataset.l;
+      document.querySelectorAll('#layerseg button').forEach(s =>
+        s.classList.toggle('active', s === b));
+    }));
+  document.querySelectorAll('#stklayer button').forEach(b =>
+    b.addEventListener('click', () => {
+      const st = wd.stickers[selSticker];
+      if (!st) return;
+      st.f = b.dataset.l === 'front' ? 1 : 0;
+      syncStickerCtl();
+      renderPreview();
+    }));
   document.querySelectorAll('#brushseg button').forEach(b =>
     b.addEventListener('click', () => {
       penSize = +b.dataset.b;
@@ -1561,7 +1618,8 @@ function confetti(palette, count) {
  */
 async function drawPlate() {
   try { await document.fonts.load('150px "License Plate"'); } catch (e) { /* draw anyway */ }
-  paintShareCanvas($('plateimg').getContext('2d'), design, drawImg);
+  paintShareCanvas($('plateimg').getContext('2d'), design,
+                   { b: drawImg, f: drawImgF });
 }
 
 /** Copy a canvas as PNG to the clipboard, downloading as fallback. */
