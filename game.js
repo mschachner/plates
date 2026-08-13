@@ -769,7 +769,9 @@ function paintShareCanvas(ctx, d, imgs, rankName) {
   const ri = Math.max(0, RANKS.findIndex(([n]) => n === rn));
   const color = RANK_COLORS[ri];
   const face = faceColor(rn, d);
-  const designed = hasDesign(d);
+  // The designer's freehand strokes live in the passed-in canvases, not in
+  // d itself - count them, or an otherwise-untouched design skips painting.
+  const designed = hasDesign(d) || !!(imgs && (imgs.b || imgs.f));
   // Geometry mirrors the page plate so designs line up exactly: corner
   // radius is 2.5% of width (the CSS plate radius), the rim stroke spans
   // insets 3..17 (the page's 4px border at this scale, with breathing room).
@@ -1728,11 +1730,12 @@ function copyText(ev) {
     .then(() => flashLabel(ev.target, 'Copied'));
 }
 
-function shareClick() {
+/** Share copies the plate IMAGE; "Copy as text" covers the text card. */
+async function shareClick() {
   const btn = $('sharebtn');
   if (!finished) return say(GATE_TIP, 'err');
-  navigator.clipboard.writeText(shareText())
-    .then(() => flashLabel(btn, 'Copied'));
+  await drawPlate();
+  copyCanvas(result => flashLabel(btn, result));
 }
 
 /* ================================================================
