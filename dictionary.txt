@@ -16459,6 +16459,7 @@ febrile
 fecal
 feces
 feckless
+fecund
 fecundity
 fed
 federal
@@ -17919,6 +17920,7 @@ french
 frenemies
 frenemy
 frenetic
+frenulum
 frenzied
 frenzy
 frequencies
