@@ -443,7 +443,10 @@ function layoutMobileChrome() {
  *               f: 0 renders behind the plate text, otherwise in front,
  *     draw:     PNG data URL of the behind-the-text freehand layer,
  *     drawF:    PNG data URL of the in-front freehand layer (each null
- *               when empty) }
+ *               when empty),
+ *     bg:       plate face color (one of PLATE_BGS), or null for the
+ *               default cream. Liftoff overrides any choice with its
+ *               black face - every Liftoff plate looks the same. }
  *
  * All three render in one shared "design space" of DW x DH (the share
  * canvas's dimensions), scaled onto whatever surface is being painted.
@@ -464,7 +467,7 @@ function normalizeDesign(d) {
   if (!d || typeof d !== 'object') d = {};
   return { border: d.border || 'plain',
            stickers: Array.isArray(d.stickers) ? d.stickers : [],
-           draw: d.draw || null, drawF: d.drawF || null };
+           draw: d.draw || null, drawF: d.drawF || null, bg: d.bg || null };
 }
 
 let design = normalizeDesign(unstore(DESIGN_KEY, null));
@@ -472,7 +475,8 @@ let drawImg = null;                    // decoded Image of design.draw (behind)
 let drawImgF = null;                   // decoded Image of design.drawF (front)
 
 function hasDesign(d) {
-  return d.border !== 'plain' || d.stickers.length > 0 || !!d.draw || !!d.drawF;
+  return d.border !== 'plain' || d.stickers.length > 0 ||
+         !!d.draw || !!d.drawF || !!d.bg;
 }
 
 /** Decode the saved freehand layers, then repaint everywhere they show. */
@@ -494,7 +498,23 @@ function rankColor() {
   return RANK_COLORS[Math.max(0, ranks.findIndex(([n]) => n === rank()))];
 }
 
-function faceColor() { return rank() === 'Liftoff' ? LIFTOFF_BG : PLATE_FACE; }
+/** Plate face color for a rank + design. Liftoff always wins: the black
+ *  face is the trophy, no matter what color the player picked. */
+function faceColor(rankName, d) {
+  if (rankName === 'Liftoff') return LIFTOFF_BG;
+  return (d && d.bg) || PLATE_FACE;
+}
+
+/** Pastel plate faces. Generated at hsl(h, 90%, ~90%) and lightened until
+ *  every swatch keeps >=2.76:1 contrast against the lightest rank color
+ *  (Pedestrian grey; the default cream sits at 3.44:1), so the plate text
+ *  stays readable on all of them. First four are soft neutrals. */
+const PLATE_BGS = [
+  '#ebe6db', '#e0e2e6', '#eae1e4', '#e3e7df', '#fddbdb', '#fddcd1', '#fce6cf',
+  '#fcf1cf', '#fcfccf', '#f1fccf', '#e6fccf', '#dafccf', '#cffccf', '#cffcda',
+  '#cffce6', '#cffcf1', '#cffcfc', '#cff1fc', '#cfe5fc', '#dbe3fd', '#e0e0fd',
+  '#e7e0fd', '#edddfd', '#f4dbfd', '#fdd6fd', '#fdd8f4', '#fdd8eb', '#fddbe3',
+];
 
 /* ---- border styles ----
  * Each style draws along the plate's rounded-rect rim in the rank color.
@@ -661,6 +681,12 @@ function paintDesign(ctx, W, H, m) {
 function repaintPlates() {
   if (!ranks) return;                    // pre-boot call
   const on = hasDesign(design);
+  // Chosen face color rides a CSS var; the body.liftoff rule outranks it.
+  if (design.bg) {
+    document.documentElement.style.setProperty('--pbg', design.bg);
+  } else {
+    document.documentElement.style.removeProperty('--pbg');
+  }
   document.querySelectorAll('.plate').forEach(p => {
     p.classList.toggle('customborder', on && design.border !== 'plain');
     for (const layer of ['behind', 'front']) {
@@ -685,7 +711,7 @@ function repaintPlates() {
       paintDesign(ctx, W, H, {
         layer, img: layer === 'front' ? drawImgF : drawImg,
         bw, r: Math.max(4, R - bw / 2 - 1), inset: bw / 2 + 1,
-        color: rankColor(), face: faceColor(),
+        color: rankColor(), face: faceColor(rank(), design),
         clip: { x: 0, y: 0, w: W, h: H, r: R },
       });
     }
@@ -742,7 +768,7 @@ function paintShareCanvas(ctx, d, imgs, rankName) {
   const rn = rankName || rank();
   const ri = Math.max(0, RANKS.findIndex(([n]) => n === rn));
   const color = RANK_COLORS[ri];
-  const face = rn === 'Liftoff' ? LIFTOFF_BG : PLATE_FACE;
+  const face = faceColor(rn, d);
   const designed = hasDesign(d);
   // Geometry mirrors the page plate so designs line up exactly: corner
   // radius is 2.5% of width (the CSS plate radius), the rim stroke spans
@@ -871,6 +897,27 @@ function deleteSticker() {
   renderPreview();
 }
 
+/** Face-color swatch grid; the first swatch is the default cream. */
+function buildBgSwatches() {
+  const grid = $('bggrid');
+  grid.innerHTML = '';
+  for (const c of [null].concat(PLATE_BGS)) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'bgswatch' + ((wd.bg || null) === c ? ' active' : '');
+    b.style.background = c || PLATE_FACE;
+    if (!c) b.title = 'Classic cream';
+    b.onclick = () => {
+      wd.bg = c;
+      grid.querySelectorAll('.bgswatch').forEach(s =>
+        s.classList.toggle('active', s === b));
+      buildBorderSwatches();             // border thumbnails wear the face
+      renderPreview();
+    };
+    grid.appendChild(b);
+  }
+}
+
 /** Border swatch grid, painted in the CURRENT rank color each open. */
 function buildBorderSwatches() {
   const grid = $('bgrid');
@@ -878,7 +925,7 @@ function buildBorderSwatches() {
   const rn = previewRank || rank();
   const ri = Math.max(0, RANKS.findIndex(([n]) => n === rn));
   const color = RANK_COLORS[ri];
-  const face = rn === 'Liftoff' ? LIFTOFF_BG : PLATE_FACE;
+  const face = faceColor(rn, wd);
   for (const [style, label] of BORDER_STYLES) {
     const b = document.createElement('button');
     b.type = 'button';
@@ -1008,7 +1055,8 @@ function buildRankRow() {
 
 async function openDesigner() {
   wd = { border: design.border,
-         stickers: design.stickers.map(s => Object.assign({}, s)) };
+         stickers: design.stickers.map(s => Object.assign({}, s)),
+         bg: design.bg };
   previewRank = rank();
   wdCanvas = document.createElement('canvas');
   wdCanvas.width = DW; wdCanvas.height = DH;
@@ -1024,10 +1072,11 @@ async function openDesigner() {
   selSticker = -1;
   buildTray();
   buildSwatches();
+  buildBgSwatches();
   buildBorderSwatches();
   buildRankRow();
   syncStickerCtl();
-  setDsgnTool('border');
+  setDsgnTool('color');
   $('stksearch').value = '';
   filterTray();
   try { await document.fonts.load('150px "License Plate"'); } catch (e) { /* ok */ }
@@ -1043,7 +1092,7 @@ function layerHasInk(cv) {
 }
 
 function saveDesign() {
-  design = { border: wd.border, stickers: wd.stickers,
+  design = { border: wd.border, stickers: wd.stickers, bg: wd.bg || null,
              draw: layerHasInk(wdCanvas) ? wdCanvas.toDataURL('image/png') : null,
              drawF: layerHasInk(wdCanvasF) ? wdCanvasF.toDataURL('image/png') : null };
   store(DESIGN_KEY, design);
@@ -1102,10 +1151,12 @@ function wireDesigner() {
   $('dsgnclearall').addEventListener('click', () => {
     wd.border = 'plain';
     wd.stickers = [];
+    wd.bg = null;
     wdCtx.clearRect(0, 0, DW, DH);
     wdCtxF.clearRect(0, 0, DW, DH);
     selSticker = -1;
     syncStickerCtl();
+    buildBgSwatches();
     buildBorderSwatches();
     renderPreview();
   });

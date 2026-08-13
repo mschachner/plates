@@ -177,8 +177,9 @@
 
 /* ---- 6. the plate ---- */
   .plate { position:relative; cursor:pointer; width:100%; aspect-ratio:2/1;
-           container-type:inline-size; background:var(--card);
+           container-type:inline-size;
            border:var(--plate-bw) solid var(--rankc, var(--accent));
+           background:var(--pbg, var(--card));
            /* Radius is proportional (2.5% of width; /5% of height keeps the
               corners circular at 2:1) so the plate, the designer preview,
               and the share image all share one silhouette. */
@@ -447,6 +448,17 @@
   .dsgnpane { display:none; flex-direction:column; flex:1; min-height:0;
               padding-top:14px; }
   .dsgnpane.open { display:flex; }
+  /* Face-color swatches + Mark's note slot */
+  .bggrid { display:flex; gap:8px; flex-wrap:wrap; align-content:start;
+            overflow-y:auto; padding:2px; }
+  .bgswatch { width:36px; height:36px; border-radius:9px; cursor:pointer;
+              border:2px solid var(--hair); padding:0; }
+  .bgswatch:hover { border-color:var(--muted); }
+  .bgswatch.active { border-color:var(--ink);
+                     box-shadow:0 0 0 2px var(--card), 0 0 0 4px var(--accent); }
+  .dsgnnote { color:var(--muted); font-size:13px; line-height:1.55;
+              margin:14px 2px 0; flex:none; }
+  .dsgnnote:empty { display:none; }
   /* Border swatches */
   .bgrid { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px;
            overflow-y:auto; padding:2px; align-content:start; }
