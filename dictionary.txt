@@ -22579,6 +22579,7 @@ inequality
 inequitable
 inequities
 inequity
+inequivalent
 inert
 inertia
 inertial
