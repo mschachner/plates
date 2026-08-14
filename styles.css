@@ -158,9 +158,11 @@
   .yword.vp { color:var(--gold); font-weight:700; }
   .yword.extra { color:#5b83c9; }
   .yword.extra.got { color:var(--extra); }
-  /* Standard / Extra tabs above yesterday's list. */
-  .ytabs { display:inline-flex; margin:0 0 12px; }
-  .ytabs[hidden] { display:none; }
+  /* Standard / Extra tabs above yesterday's list. The .seg rule further down
+     sets display:flex at the same specificity, so these have to outrank it or
+     the bar stretches the full width of the disclosure. */
+  .seg.ytabs { display:inline-flex; margin:0 0 12px; }
+  .seg.ytabs[hidden] { display:none; }
   .modal .close { position:absolute; top:12px; right:14px; background:none;
                   border:none; color:var(--muted); font-size:22px; padding:6px 10px; }
   .modal .close:hover { color:var(--ink); }
