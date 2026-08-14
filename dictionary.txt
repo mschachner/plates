@@ -443,8 +443,6 @@ activates
 activating
 activation
 activations
-activator
-activators
 active
 actively
 actives
@@ -917,7 +915,10 @@ aggressively
 aggressiveness
 aggressor
 aggressors
+aggrieve
 aggrieved
+aggrieves
+aggrieving
 aggro
 aghast
 agile
@@ -1264,7 +1265,9 @@ alphabet
 alphabetic
 alphabetical
 alphabetically
+alphabetization
 alphabetized
+alphabetizing
 alphabets
 alphanumeric
 alphas
@@ -9528,6 +9531,8 @@ converters
 convertible
 convertibles
 converting
+convertor
+convertors
 converts
 convex
 convexity
@@ -27787,6 +27792,7 @@ miscast
 miscegenation
 miscellaneous
 miscellany
+mischaracterize
 mischief
 mischievous
 mischievously
@@ -32131,6 +32137,7 @@ pertinent
 perturbation
 perturbations
 perturbed
+perturbing
 perusal
 peruse
 perused
@@ -33579,8 +33586,6 @@ preachy
 preamble
 preamp
 prearranged
-prebend
-prebendary
 precancerous
 precarious
 precariously
@@ -33814,8 +33819,6 @@ pres
 presage
 presaged
 presbyter
-presbyterian
-presbyterianism
 preschool
 preschooler
 preschoolers
@@ -34415,6 +34418,7 @@ prosaic
 proscenium
 prosciutto
 proscribed
+proscribing
 prose
 prosecute
 prosecuted
@@ -34507,6 +34511,7 @@ protrudes
 protruding
 protrusion
 protrusions
+protuberance
 proud
 prouder
 proudest
@@ -34650,8 +34655,6 @@ pubescent
 pubic
 pubis
 public
-publican
-publicans
 publication
 publications
 publicist
@@ -36976,7 +36979,6 @@ republic
 republican
 republicanism
 republicans
-republication
 republics
 republish
 republished
@@ -38630,8 +38632,11 @@ saviour
 saviours
 savor
 savored
+savoriness
 savoring
 savory
+savvier
+savviest
 savvy
 saw
 sawdust
@@ -39550,7 +39555,10 @@ serviced
 serviceman
 servicemen
 services
+servicewoman
+servicewomen
 servicing
+serviette
 servile
 serving
 servings
@@ -41511,8 +41519,6 @@ souvenirs
 sovereign
 sovereigns
 sovereignty
-soviet
-soviets
 sow
 sowed
 sower
@@ -44879,7 +44885,6 @@ thanking
 thankless
 thanks
 thanksgiving
-thanksgivings
 that
 thatch
 thatched
@@ -46005,8 +46010,6 @@ transubstantiation
 transversal
 transverse
 transversely
-transvestite
-transvestites
 trap
 trapdoor
 trapeze
