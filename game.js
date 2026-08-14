@@ -7,7 +7,7 @@
  *   0.  Migration to platesgame.com
  *   1.  Configuration
  *   2.  Small utilities (DOM, dates, storage)
- *   3.  Core game logic (validity, scoring, answer lists, schedule)
+ *   3.  Core game logic (validity, scoring, answer lists, extras, schedule)
  *   4.  Game state
  *   5.  Persistence (today's progress, lifetime stats, dictionary decisions)
  *   6.  Wordlist rendering (the alphabetical column)
@@ -104,7 +104,7 @@ const RANK_COLORS = ['#8a8781', '#17151a', '#1e6b34', '#1b3a8c',
 const LIFTOFF_BG = '#17151a';
 
 /** Deploy build number — keep in step with the ?v= query in index.html. */
-const BUILD = 30;
+const BUILD = 31;
 
 /** Touch devices get "Tap" wording. */
 const TAP = matchMedia('(pointer: coarse)').matches;
@@ -207,6 +207,55 @@ function computeAnswers(clue) {
   return { answers: ans, vp: best ? best[3] : null };
 }
 
+/* ---- Extra words ----
+ * Everything in candidates.js (SCOWL minus the game dictionary minus the
+ * editor's ditches) also scores, at the ordinary rate and with no bonus of
+ * its own. Extras are deliberately second-class: they are never the Vanity
+ * Plate, never surface as a hint, never appear in the "x of N" count, and
+ * never move the rank thresholds — those all read the dictionary answer
+ * list. So the ranks stay tuned to everyday words while nobody is told
+ * their real word is "not in the word list".
+ *
+ * The pool is ~650KB, so it loads in the background after boot; anything
+ * that needs it waits on ensureExtras() rather than blocking the page. */
+
+let extraPool = null;         // the loaded EXTRA array (null until it lands)
+let extras = {};              // word -> {p, s} for the current clue
+
+let extraLoaded = null;
+function loadExtra() {
+  if (!extraLoaded) {
+    extraLoaded = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'candidates.js?v=' + BUILD;
+      s.onload = resolve;
+      s.onerror = () => {
+        extraLoaded = null;
+        reject(new Error('could not load candidates.js'));
+      };
+      document.head.appendChild(s);
+    });
+  }
+  return extraLoaded;
+}
+
+/** Extra answers for a clue: valid pool words, scored the ordinary way. */
+function computeExtras(clue) {
+  const out = {};
+  if (!extraPool) return out;
+  for (const w of extraPool) if (isValid(w, clue)) out[w] = scoreWord(w, clue);
+  return out;
+}
+
+/** Resolve once the pool is loaded and `extras` matches the current clue. */
+function ensureExtras() {
+  if (extraPool) return Promise.resolve();
+  return loadExtra().then(() => {
+    extraPool = EXTRA;
+    extras = computeExtras(CLUE);
+  });
+}
+
 /** Today's scheduled clue (wraps if we ever outlive the schedule). */
 function dailyClue() {
   const n = SCHED.length;
@@ -235,6 +284,7 @@ let perfect;              // sum of all answer points + VP bonus
 let ranks;                // RANKS resolved to point thresholds for this plate
 let total = 0;            // player's score
 let found = [];           // words found, in find order
+let extraFound = new Set(); // subset of `found` that came from the Extra pool
 let hinted = new Set();   // words revealed as hint masks
 let hintsUsed = 0;
 let finished = false;     // player pressed Finish (locks the day)
@@ -274,15 +324,22 @@ function saveDay() {
   }
 }
 
-/** Rebuild found words, hint masks, and finished state from a day snapshot. */
+/** Rebuild found words, hint masks, and finished state from a day snapshot.
+ *  A saved word that isn't on the answer list is an Extra word unless it is
+ *  one of the editor's pending rescues — which is decidable without waiting
+ *  for the Extra pool to load. */
 function restoreDay(snap) {
   if (!snap || snap.date !== todayKey() || snap.clue !== CLUE) return;
   for (const w of snap.found) {
     const a = answers[w];
-    const pts = a ? a.p + (a.vp ? VP_BONUS : 0) : scoreWord(w, CLUE).p;
+    const sc = scoreWord(w, CLUE);
+    const pts = a ? a.p + (a.vp ? VP_BONUS : 0) : sc.p;
+    const rescued = !a && decisions.get(w) === 'add';
     found.push(w);
     total += pts;
-    addFoundRow(w, pts, a || { s: scoreWord(w, CLUE).s }, a ? '' : ' rescued');
+    if (!a && !rescued) extraFound.add(w);
+    addFoundRow(w, pts, a || { s: sc.s },
+                a ? '' : (rescued ? ' rescued' : ' extra'));
   }
   hintsUsed = snap.hintsUsed || 0;
   if (snap.finished) { finished = true; applyFinished(); }
@@ -337,9 +394,12 @@ function clueEmbedding(w) {
   return pos;
 }
 
+/** Longer than any dictionary word: only these break mid-word (see .long). */
+const LONG_WORD = 22;
+
 function makeRow(w, pts, cls, tags) {
   const row = document.createElement('div');
-  row.className = 'row' + cls;
+  row.className = 'row' + cls + (w.length > LONG_WORD ? ' long' : '');
   row.dataset.w = w;
   // Clue letters render bold; the first/last clue letter is tinted when it
   // is buried (not sitting at the word's edge), explaining the burial bonus.
@@ -374,17 +434,17 @@ function makeHintRow(w) {
   return row;
 }
 
-/** Add a found word (replacing its hint mask if present). Rescued words are
- *  dev-mode dictionary additions; clicking one un-rescues it. */
-function addFoundRow(w, pts, a, rescuedCls) {
+/** Add a found word (replacing its hint mask if present). `cls` marks the
+ *  word's kind: ' extra' for Extra words (blue), ' rescued' for dev-mode
+ *  dictionary additions (clicking one un-rescues it). */
+function addFoundRow(w, pts, a, cls) {
   const old = document.querySelector('#column .row.hinted[data-w="' + w + '"]');
   if (old) old.remove();
   let tags = '';
   if (a && a.vp) tags += ' <span class="tag vp">VP</span>';
   if (a && a.s) tags += ' <span class="tag snug">SNUG</span>';
-  const cls = rescuedCls || (a && a.vp ? ' vp' : '');
-  const row = makeRow(w, pts, cls, tags);
-  if (rescuedCls) {
+  const row = makeRow(w, pts, cls || (a && a.vp ? ' vp' : ''), tags);
+  if (cls && cls.indexOf('rescued') >= 0) {
     row.onclick = () => {
       if (!isDev()) return;
       unrescue(w);
@@ -1492,8 +1552,9 @@ function setPlate(clue) {
   for (const w in answers) perfect += answers[w].p;
   ranks = RANKS.map(([n, f]) => [n, Math.round(perfect * f / 5) * 5]);
 
-  total = 0; found = []; hinted = new Set();
+  total = 0; found = []; extraFound = new Set(); hinted = new Set();
   hintsUsed = 0; finished = false;
+  extras = computeExtras(clue);          // empty until the pool lands
 
   document.body.classList.remove('fin');
   $('inp').disabled = false;
@@ -1535,7 +1596,7 @@ function goDaily() {
 }
 
 /** Handle a word submission. */
-function submitWord() {
+async function submitWord() {
   if (finished) return;
   const inp = $('inp');
   const w = inp.value.trim().toLowerCase();
@@ -1550,8 +1611,27 @@ function submitWord() {
 
   const a = answers[w];
   if (!a) {
-    // Not on the answer list: dev mode may rescue it into the dictionary.
+    // Dev mode: a word already queued for the dictionary scores as a rescue.
     if (decisions.get(w) === 'add') return rescue(w);
+    // Otherwise it may be an Extra word — wait for the pool if it's still
+    // in flight, then re-check that nothing landed while we waited.
+    if (!extraPool) {
+      try { await ensureExtras(); } catch (e) { /* fall through to reject */ }
+      if (finished || found.includes(w)) return;
+    }
+    const x = extras[w];
+    if (x) {
+      found.push(w);
+      extraFound.add(w);
+      const before = total;
+      total += x.p;
+      say('EXTRA WORD! ' + W + '  +' + x.p, 'extra');
+      addFoundRow(w, x.p, x, ' extra');
+      render();
+      const top = ranks[ranks.length - 1][1];
+      if (before < top && total >= top) openLiftoff();
+      return;
+    }
     if (!isDev()) return say(W + ' is not in the word list', 'err');
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -1787,28 +1867,58 @@ function openLiftoff() {
   confetti(GOLD_CONFETTI, 320);
 }
 
+/* ---- yesterday's answers ----
+ * Two tabs: the Standard list (the dictionary answers, the ones the ranks
+ * were built from) and the Extra list. Found words are bolded in both. */
+
+let yTab = 'std';
+
 /** Yesterday's full answer list: found words bolded, VP in gold. */
 function renderYesterday() {
   const info = yesterdayInfo();
-  const sub = $('ysub');
-  const box = $('ylist');
-  box.innerHTML = '';
+  $('ytabs').hidden = !info;
   if (!info) {
-    sub.textContent = 'This is the very first Plates: no yesterday yet.';
-  } else {
-    const { answers: ya, vp } = computeAnswers(info.clue);
-    const got = new Set((statsDays[info.key] && statsDays[info.key].f) || []);
-    sub.textContent = 'Plates #' + info.no + ' • ' +
-      info.clue.toUpperCase().split('').join('-') + ' • you found ' +
-      [...got].filter(w => ya[w]).length + ' of ' + Object.keys(ya).length;
-    for (const w of Object.keys(ya).sort()) {
-      const row = document.createElement('div');
-      row.className = 'yword' + (got.has(w) ? ' got' : '') + (w === vp ? ' vp' : '');
-      row.innerHTML = w.toUpperCase() +
-        (w === vp ? ' <span class="tag vp">VP</span>' : '') +
-        ' <b>+' + (ya[w].p + (w === vp ? VP_BONUS : 0)) + '</b>';
-      box.appendChild(row);
-    }
+    $('ysub').textContent = 'This is the very first Plates: no yesterday yet.';
+    $('ylist').innerHTML = '';
+    return;
+  }
+  showYTab(yTab);
+}
+
+function showYTab(t) {
+  yTab = t;
+  document.querySelectorAll('#ytabs button').forEach(b =>
+    b.classList.toggle('active', b.dataset.t === t));
+  const info = yesterdayInfo();
+  if (!info) return;
+  const sub = $('ysub'), box = $('ylist');
+  const head = 'Plates #' + info.no + ' • ' +
+               info.clue.toUpperCase().split('').join('-') + ' • ';
+  const got = new Set((statsDays[info.key] && statsDays[info.key].f) || []);
+
+  if (t === 'extra' && !extraPool) {       // pool still in flight
+    box.innerHTML = '';
+    sub.textContent = head + 'loading extra words…';
+    ensureExtras().then(() => { if (yTab === 'extra') showYTab('extra'); })
+                  .catch(() => { sub.textContent = head + 'extra words unavailable'; });
+    return;
+  }
+
+  const { answers: ya, vp } = t === 'std'
+    ? computeAnswers(info.clue) : { answers: computeExtras(info.clue), vp: null };
+  const words = Object.keys(ya).sort();
+  sub.textContent = head + 'you found ' + words.filter(w => got.has(w)).length +
+    ' of ' + words.length + (t === 'std' ? '' : ' extra words');
+  box.innerHTML = '';
+  for (const w of words) {
+    const row = document.createElement('div');
+    row.className = 'yword' + (got.has(w) ? ' got' : '') +
+                    (w === vp ? ' vp' : '') + (t === 'std' ? '' : ' extra') +
+                    (w.length > LONG_WORD ? ' long' : '');
+    row.innerHTML = '<span class="ywtxt">' + w.toUpperCase() + '</span>' +
+      (w === vp ? ' <span class="tag vp">VP</span>' : '') +
+      ' <b>+' + (ya[w].p + (w === vp ? VP_BONUS : 0)) + '</b>';
+    box.appendChild(row);
   }
 }
 
@@ -1917,37 +2027,19 @@ function buildWordlistPane() {
 }
 
 /**
- * Candidate pool (dev): candidates.js defines EXTRA — every SCOWL
- * lowercase-only word of length >= 4 that is NOT in the game dictionary.
- * It's ~800KB, so it loads only when a dev first opens the candidates card.
+ * Right pane: the clue's Extra words (candidates.js), click-to-promote into
+ * the dictionary. The pool is the same one players score against; promoting
+ * a word moves it from Extra to Standard.
  */
-let extraLoaded = null;
-function loadExtra() {
-  if (!extraLoaded) {
-    extraLoaded = new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = 'candidates.js?v=' + BUILD;
-      s.onload = resolve;
-      s.onerror = () => {
-        extraLoaded = null;
-        reject(new Error('could not load candidates.js'));
-      };
-      document.head.appendChild(s);
-    });
-  }
-  return extraLoaded;
-}
-
-/** Right pane: out-of-dictionary words fitting the clue, click-to-queue. */
 async function buildCandidatePane() {
   const box = $('candlist');
   if (box.childElementCount) return;
   $('candcount').textContent = 'loading…';
-  try { await loadExtra(); } catch (e) {
+  try { await ensureExtras(); } catch (e) {
     $('candcount').textContent = e.message;
     return;
   }
-  const fits = EXTRA.filter(w => isValid(w, CLUE));
+  const fits = extraPool.filter(w => isValid(w, CLUE));
   $('candcount').textContent =
     fits.length;
   for (const w of fits) {
@@ -2088,19 +2180,17 @@ async function commitDictionary() {
                 data.sha, msg);
     const dict = await ghGet('dictionary.txt');
     await ghPut('dictionary.txt', list.join('\n') + '\n', dict.sha, msg);
-    // Keep the dev candidate pool in step: committed additions leave EXTRA,
-    // removals re-enter it (close enough for curation tooling — a removed
-    // non-SCOWL rescue re-entering the pool is harmless).
+    // Keep the Extra pool in step: a promoted word leaves it (it's a
+    // dictionary word now), and a word removed from the dictionary is
+    // DITCHED — it leaves the pool too, rather than quietly demoting to an
+    // Extra word that would still score.
     try {
       const cand = await ghGet('candidates.js');
       const ctext = b64decode(cand.content);
       const cm = ctext.match(/const EXTRA = "([^"]*)"/);
       if (cm) {
         const pool = new Set(cm[1].split(' '));
-        for (const [w, c] of committed) {
-          if (c === 'add') pool.delete(w);
-          else if (w.length >= 4) pool.add(w);
-        }
+        for (const [w] of committed) pool.delete(w);
         await ghPut('candidates.js',
                     ctext.replace(cm[0],
                       'const EXTRA = "' + [...pool].sort().join(' ') + '"'),
@@ -2171,7 +2261,10 @@ function render() {
   const nRem = [...decisions.values()].filter(v => v === 'remove').length;
   const parts = [];
   if (found.length) {
-    parts.push(found.length + ' of ' + Object.keys(answers).length + ' words');
+    // Only dictionary words count toward "x of N"; extras are tallied apart.
+    parts.push(found.filter(w => answers[w]).length + ' of ' +
+               Object.keys(answers).length + ' words');
+    if (extraFound.size) parts.push(extraFound.size + ' extra');
   }
   if (decisions.size) {
     parts.push((decisions.size - nRem) + ' rescued · ' +
@@ -2227,6 +2320,8 @@ function wireEvents() {
     if (!$('yestdisc').classList.contains('open')) renderYesterday();
     $('yestdisc').classList.toggle('open');
   });
+  document.querySelectorAll('#ytabs button').forEach(b =>
+    b.addEventListener('click', () => showYTab(b.dataset.t)));
   // The dev switch shows only where it's relevant: on a browser that has
   // unlocked dev mode before, or when the page is visited with #dev.
   const syncDevVisibility = () => document.body.classList.toggle('devvis',
@@ -2370,6 +2465,10 @@ function boot() {
   wireEvents();
   goDaily();
   loadDrawImg();
+  // The Extra pool is big and never needed for first paint: fetch it in the
+  // background, then fold it into the day (the counter and any submission
+  // that arrives first wait on ensureExtras()).
+  ensureExtras().then(render).catch(() => { /* extras stay unavailable */ });
 }
 
 boot();

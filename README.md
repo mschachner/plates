@@ -40,9 +40,17 @@ Plates uses Scrabble scoring to sort letters by rarity:
 
 The **Vanity Plate** of a puzzle is the word on the answer list with the greatest average Scrabble score, and gets a bonus of +250 points. (Ties are broken first by fewer letters, then alphabetically.)
 
+## Extra words
+
+The game dictionary (`dictionary.txt`) is the everyday word list, and it alone decides the ranks, the Vanity Plate, the hints, and the "x of N" counter. Every *other* SCOWL word — roughly 63,000 of them, held in `candidates.js`, minus the ones deliberately ditched — is an **Extra word**.
+
+Extra words score at the ordinary rate, with no bonus of their own. What they don't do is move the goalposts: an Extra word is never the Vanity Plate, never surfaces as a hint, never counts toward the word tally, and never enters the perfect score the rank thresholds are cut from. So no real word is turned away for being obscure, while the ranks stay tuned to words people actually know.
+
+Extra words show up in blue in the word list, and yesterday's answers are split into **Standard** and **Extra** tabs.
+
 ## Clue selection
 
-The game dictionary is `dictionary.txt`, built by filtering SCOWL (wamerican-large).  
+The game dictionary is `dictionary.txt`, built by filtering SCOWL (wamerican-large) to words of zipf frequency ≥ 2.0, then curating by hand.  
 
 Clues are selected so that a daily puzzle has roughly 20–100 valid words.
 

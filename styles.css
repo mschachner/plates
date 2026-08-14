@@ -31,6 +31,7 @@
     --bg:#f3dcb2; --card:#fffaf0; --ink:#54371f; --muted:#a58c6f;
     --accent:#c05621; --accent-ink:#fff8ee; --good:#5f7d2a; --bad:#a33327;
     --gold:#8c6d1f; --chip:#efdec5; --bar:#e4d2b8; --hair:#d8c3a4;
+    --extra:#1a57c2;      /* Extra words: found rows, readout, Yesterday tab */
     --radius:10px; --plate-bw:4px; --shadow:0 8px 18px rgba(120,72,32,.14);
     --font:'Atkinson Hyperlegible Next',"Avenir Next","Segoe UI",system-ui,sans-serif; --plate-font:'License Plate',var(--font);
   }
@@ -155,6 +156,11 @@
              font-size:12.5px; }
   .yword.got { font-weight:700; color:var(--ink); }
   .yword.vp { color:var(--gold); font-weight:700; }
+  .yword.extra { color:#5b83c9; }
+  .yword.extra.got { color:var(--extra); }
+  /* Standard / Extra tabs above yesterday's list. */
+  .ytabs { display:inline-flex; margin:0 0 12px; }
+  .ytabs[hidden] { display:none; }
   .modal .close { position:absolute; top:12px; right:14px; background:none;
                   border:none; color:var(--muted); font-size:22px; padding:6px 10px; }
   .modal .close:hover { color:var(--ink); }
@@ -266,6 +272,7 @@
   .msg.ok { color:var(--good); font-weight:600; }
   .msg.err { color:var(--bad); }
   .msg.gold { color:var(--gold); font-weight:800; }
+  .msg.extra { color:var(--extra); font-weight:600; }
   .msg button { font-size:13px; padding:5px 12px; background:none; color:var(--good);
                 border:1.5px dashed var(--good); }
 
@@ -301,6 +308,8 @@
   .discpad .distrow .dbar i { background:#c9ab82; }
   .discpad .yword.got { color:var(--ink); }
   .discpad .yword.vp { color:var(--gold); }
+  .discpad .yword.extra { color:#5b83c9; }
+  .discpad .yword.extra.got { color:var(--extra); }
   .discpad .distrow.today { color:var(--ink); }
   .discpad .distrow.today .dbar i { background:var(--accent); }
 
@@ -324,9 +333,19 @@
   .row b { flex:none; }
   .row b { margin-left:auto; font-variant-numeric:tabular-nums; font-weight:600;
            color:var(--muted); font-size:14px; }
-  /* Clue letters inside a found word: bold; buried end letters tinted. */
-  .row .cl { font-weight:800; }
-  .row .cl.buried { color:#1a57c2; }
+  /* Clue letters inside a found word. The page font ships in one weight, so
+     bold is synthesized and tops out early — a hairline shadow on each side
+     thickens the strokes enough to read as a different letter class. Buried
+     end letters (the ones earning the burial bonus) are tinted orange. */
+  /* A few Extra words run past 22 letters — longer than any dictionary word,
+     and long enough to lie across the next column (PNEUMONOULTRA…, 45). Only
+     those may break mid-word; every ordinary row keeps its single line. */
+  .row.long .wtxt, .yword.long .ywtxt { min-width:0; overflow-wrap:anywhere; }
+  .row.long .wtxt { white-space:normal; }
+  .row .cl { font-weight:900; font-size:1.05em;
+             text-shadow:.032em 0 0 currentColor, -.032em 0 0 currentColor; }
+  .row .cl.buried { color:var(--accent); }
+  .row.extra { color:var(--extra); }
   .row .tag { font-size:11px; letter-spacing:.1em; font-weight:700; }
   .row .tag.vp { color:var(--gold); }
   .row .tag.snug { color:var(--accent); }
@@ -559,7 +578,7 @@
            max-width:calc(100vw - 24px); bottom:var(--msgbot, 76px); z-index:9; margin:0;
            justify-content:center; pointer-events:none; min-height:0; }
     .msg.show { transform:translateX(-50%); }
-    .msg.ok, .msg.err, .msg.gold { background:var(--card); border-radius:10px;
+    .msg.ok, .msg.err, .msg.gold, .msg.extra { background:var(--card); border-radius:10px;
            padding:9px 12px; box-shadow:0 4px 16px rgba(60,35,10,.22); }
     .msg button { pointer-events:auto; }
   }
