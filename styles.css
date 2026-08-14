@@ -324,6 +324,9 @@
   .row b { flex:none; }
   .row b { margin-left:auto; font-variant-numeric:tabular-nums; font-weight:600;
            color:var(--muted); font-size:14px; }
+  /* Clue letters inside a found word: bold; buried end letters tinted. */
+  .row .cl { font-weight:800; }
+  .row .cl.buried { color:#1a57c2; }
   .row .tag { font-size:11px; letter-spacing:.1em; font-weight:700; }
   .row .tag.vp { color:var(--gold); }
   .row .tag.snug { color:var(--accent); }

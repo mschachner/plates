@@ -104,7 +104,7 @@ const RANK_COLORS = ['#8a8781', '#17151a', '#1e6b34', '#1b3a8c',
 const LIFTOFF_BG = '#17151a';
 
 /** Deploy build number — keep in step with the ?v= query in index.html. */
-const BUILD = 29;
+const BUILD = 30;
 
 /** Touch devices get "Tap" wording. */
 const TAP = matchMedia('(pointer: coarse)').matches;
@@ -322,11 +322,39 @@ function updateColumns() {
   if (col.scrollHeight > avail && col.clientWidth >= 430) col.classList.add('two');
 }
 
+/**
+ * Positions of the clue letters within a valid word (greedy leftmost
+ * embedding, except the last clue letter snaps to the word's final letter
+ * when it matches — mirroring how burial is scored).
+ */
+function clueEmbedding(w) {
+  const pos = [];
+  let j = 0;
+  for (let i = 0; i < w.length && j < CLUE.length; i++) {
+    if (w[i] === CLUE[j]) { pos.push(i); j++; }
+  }
+  if (w[w.length - 1] === CLUE[CLUE.length - 1]) pos[pos.length - 1] = w.length - 1;
+  return pos;
+}
+
 function makeRow(w, pts, cls, tags) {
   const row = document.createElement('div');
   row.className = 'row' + cls;
   row.dataset.w = w;
-  row.innerHTML = w.toUpperCase() + (tags || '') + ' <b>+' + pts + '</b>';
+  // Clue letters render bold; the first/last clue letter is tinted when it
+  // is buried (not sitting at the word's edge), explaining the burial bonus.
+  const pos = clueEmbedding(w);
+  const set = new Set(pos);
+  const first = pos[0], last = pos[pos.length - 1];
+  const word = [...w].map((ch, i) => {
+    if (!set.has(i)) return ch.toUpperCase();
+    const buried = (i === first && i !== 0) ||
+                   (i === last && i !== w.length - 1);
+    return '<span class="cl' + (buried ? ' buried' : '') + '">' +
+           ch.toUpperCase() + '</span>';
+  }).join('');
+  row.innerHTML = '<span class="wtxt">' + word + '</span>' + (tags || '') +
+                  ' <b>+' + pts + '</b>';
   return row;
 }
 
@@ -386,9 +414,9 @@ function setOdo(n) {
   });
 }
 
-/** "PLATES #2 • 10 August" — the plate's top field. */
+/** "PLATES #2 • 10 AUGUST" — the plate's top field. */
 function plateTopText() {
-  return 'PLATES #' + (dayIndex() + 1) + ' • ' + dateStr();
+  return 'PLATES #' + (dayIndex() + 1) + ' • ' + dateStr().toUpperCase();
 }
 
 /** localStorage key for the mobile floating-plate preference. */
@@ -2150,6 +2178,8 @@ function render() {
                nRem + ' marked for removal');
   }
   $('count').textContent = parts.join(' · ');
+  $('hintbtn').textContent = hintsUsed
+    ? 'Hint (' + hintsUsed + ' used)' : 'Hint';
   $('wlbtn').textContent = decisions.size
     ? 'Manage wordlist (' + decisions.size + ')' : 'Manage wordlist';
   document.documentElement.style.setProperty('--rankc', rankColor());
