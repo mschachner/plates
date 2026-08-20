@@ -32751,7 +32751,6 @@ plank
 planking
 planks
 plankton
-planktonic
 planned
 planner
 planners
@@ -33563,6 +33562,7 @@ prance
 prancing
 prang
 prank
+pranking
 pranks
 prankster
 pranksters
@@ -41553,6 +41553,7 @@ spacey
 spacial
 spacing
 spacious
+spackling
 spade
 spader
 spades
