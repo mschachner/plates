@@ -22,13 +22,13 @@
 <!-- The ?v= number below must be bumped on every deploy (all four
      references, including the one inside the script) so browsers never pair a
      cached script with new markup. -->
-<link id="stylesheet" rel="stylesheet" href="styles.css?v=36">
+<link id="stylesheet" rel="stylesheet" href="styles.css?v=37">
 <!-- Candidate restyles live in styles/<name>.css (desert = this look).
      ?style=<name> swaps one in before first paint; no param = styles.css. -->
 <script>
 (function () {
   var m = location.search.match(/[?&]style=([a-z0-9-]+)/);
-  if (m) document.getElementById('stylesheet').href = 'styles/' + m[1] + '.css?v=36';
+  if (m) document.getElementById('stylesheet').href = 'styles/' + m[1] + '.css?v=37';
 })();
 </script>
 </head>
@@ -62,8 +62,8 @@
       <!-- The score plate and, on its back, the Challenge Plate. Clicking
            either face flips the pair (.plateflip.flipped). -->
       <div class="plateflip" id="plateflip">
-      <div class="plate"><div class="ptop" id="ptop"></div><div class="pbot" id="pbot"></div><div class="pline"><span id="clue"></span><span>-</span><span class="odo"><span class="digit"><span class="reel"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></span></span><span class="digit"><span class="reel"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></span></span><span class="digit"><span class="reel"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></span></span><span class="digit"><span class="reel"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></span></span></span></div><div class="platecover" id="platecover">Challenge Plate</div></div>
-      <div class="plate challenge"><div class="ptop cptop"></div><div class="pline"><span class="cline"></span></div><div class="platecover">Score plate</div></div>
+      <div class="plate"><div class="ptop" id="ptop"></div><div class="pbot" id="pbot"></div><div class="pline"><span id="clue"></span><span>-</span><span class="odo"><span class="digit"><span class="reel"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></span></span><span class="digit"><span class="reel"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></span></span><span class="digit"><span class="reel"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></span></span><span class="digit"><span class="reel"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></span></span></span></div><div class="platecover" id="platecover">Challenge Plate &#x21bb;</div></div>
+      <div class="plate challenge"><div class="ptop cptop"></div><div class="pline"><span class="cline"></span></div><div class="platecover">Score Plate &#x21bb;</div></div>
       </div>
       <div class="floatplate" id="floatplate" hidden></div>
       <div class="entry">
@@ -327,8 +327,8 @@
       <p>Hints are available, use as many as you need!</p>
     </div>
   </div>
-<script src="data.js?v=36"></script>
-<script src="game.js?v=36"></script>
+<script src="data.js?v=37"></script>
+<script src="game.js?v=37"></script>
 <!-- Candidate-style picker: appears when the page is loaded
      with ?style=<name> or #styles, and cycles through styles/<name>.css.
      Inline-styled so it looks the same under every stylesheet. -->
@@ -337,8 +337,16 @@
   var STYLES = ['desert', 'monochrome', 'bauhaus', 'newsprint', 'swiss', 'flat',
                 'material', 'neo-brutalism', 'clay', 'botanical'];
   var m = location.search.match(/[?&]style=([a-z0-9-]+)/);
-  if (!m && location.hash !== '#styles') return;
   var cur = m ? m[1] : 'desert';
+  if (!m && location.hash !== '#styles') {
+    // Not asked for yet: show the picker if #styles is added later.
+    window.addEventListener('hashchange', function () {
+      if (location.hash === '#styles' && !document.getElementById('stylepicker')) build();
+    });
+    return;
+  }
+  build();
+  function build() {
   function go(name) {
     var u = new URL(location.href);
     u.searchParams.set('style', name);
@@ -374,6 +382,7 @@
     if (e.key === '[') step(-1);
     if (e.key === ']') step(1);
   });
+  }
 })();
 </script>
 </body>

@@ -168,14 +168,20 @@
   .plateflip { position:relative; width:100%; perspective:1600px; }
   .plateflip .plate { backface-visibility:hidden; -webkit-backface-visibility:hidden;
                       transition:border-color .6s ease, background-color .6s ease; }
+  /* Transformed descendants (the scaleY'd text line, the canvases) get their own
+     compositing layers, and some engines then ignore the parent's backface rule -
+     so hide their backs too, and swap the faces' visibility at the 90° point of
+     the turn (~.27s into the .65s ease) as a belt to that suspender. */
+  .plateflip .plate * { backface-visibility:hidden; -webkit-backface-visibility:hidden; }
   /* The flip only animates after first paint (body.ready, set by game.js), so a
      late-arriving stylesheet never plays the turn on load. */
   body.ready .plateflip .plate { transition:border-color .6s ease, background-color .6s ease,
-                                 transform .65s cubic-bezier(.4,.05,.2,1); }
+                                 transform .65s cubic-bezier(.4,.05,.2,1),
+                                 visibility 0s linear .27s; }
   .plate.challenge { position:absolute; inset:0; width:auto;
-                     transform:rotateY(180deg); }
-  .plateflip.flipped .plate:not(.challenge) { transform:rotateY(180deg); }
-  .plateflip.flipped .plate.challenge { transform:rotateY(360deg); }
+                     transform:rotateY(180deg); visibility:hidden; }
+  .plateflip.flipped .plate:not(.challenge) { transform:rotateY(180deg); visibility:hidden; }
+  .plateflip.flipped .plate.challenge { transform:rotateY(360deg); visibility:visible; }
   .odo { display:inline-flex; }
   .digit { display:inline-block; height:1em; overflow:hidden; }
   .reel { display:block; transition:transform .55s cubic-bezier(.2,.75,.25,1); }
