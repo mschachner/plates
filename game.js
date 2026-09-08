@@ -1,7 +1,8 @@
 /* game.js — Plates: all behavior.
  *
  * Loads after data.js, which defines DICT (dictionary), ELIG (eligible clues
- * with difficulty), and SCHED (the baked daily schedule).
+ * with difficulty), SCHED (the baked daily schedule), and CHAL (the baked
+ * Challenge Plate schedule).
  *
  * Sections:
  *   0.  Migration to platesgame.com
@@ -11,7 +12,7 @@
  *   4.  Game state
  *   5.  Persistence (today's progress, lifetime stats, dictionary decisions)
  *   6.  Wordlist rendering (the alphabetical column)
- *   7.  The plate (odometer + rank color)
+ *   7.  The plate (odometer + rank color) and the Challenge Plate (its back)
  *   8.  The road-trip rank rail
  *   9.  Stats
  *   10. Messages & label flashes
@@ -104,7 +105,7 @@ const RANK_COLORS = ['#8a8781', '#17151a', '#1e6b34', '#1b3a8c',
 const LIFTOFF_BG = '#17151a';
 
 /** Deploy build number — keep in step with the ?v= query in index.html. */
-const BUILD = 32;
+const BUILD = 36;
 
 /** Touch devices get "Tap" wording. */
 const TAP = matchMedia('(pointer: coarse)').matches;
@@ -262,14 +263,26 @@ function dailyClue() {
   return SCHED[((dayIndex() % n) + n) % n];
 }
 
-/** Yesterday's clue/date/number, or null on day one. */
+/* The Challenge Plate schedule is baked in data.js like SCHED, but the dev
+ * panel can reroll individual days (see "Challenge Plate curation"); rerolls
+ * live in this working copy until committed. */
+let chalSched = CHAL.slice();
+
+/** Today's scheduled Challenge Plate clue (same wrap rule as dailyClue). */
+function dailyChallenge() {
+  const n = chalSched.length;
+  return chalSched[((dayIndex() % n) + n) % n];
+}
+
+/** Yesterday's clue/challenge/date/number, or null on day one. */
 function yesterdayInfo() {
   const yIdx = dayIndex() - 1;
   if (yIdx < 0) return null;
-  const n = SCHED.length;
+  const n = SCHED.length, m = chalSched.length;
   const d = todayDate();
   d.setDate(d.getDate() - 1);
-  return { clue: SCHED[((yIdx % n) + n) % n], key: dkey(d), no: yIdx + 1 };
+  return { clue: SCHED[((yIdx % n) + n) % n], chal: chalSched[((yIdx % m) + m) % m],
+           key: dkey(d), no: yIdx + 1 };
 }
 
 /* ================================================================
@@ -292,6 +305,10 @@ let isDaily = false;      // current plate is today's scheduled plate
 let diff = 'easy';        // dev roll difficulty band
 let rollLen = 'any';      // dev roll clue length: '3' | '4' | 'any'
 let tripPts = null;       // rail geometry, rebuilt on resize
+let chalClue;             // today's Challenge Plate clue, lowercase ("kmu")
+let chalAnswers;          // Set of dictionary answers for the challenge
+let chalWord = null;      // the word that solved the challenge, or null
+let flipped = false;      // Challenge Plate is face-up
 
 /** Pending dictionary edits (dev): word -> 'add' | 'remove'. */
 const decisions = new Map();
@@ -304,7 +321,8 @@ const DAY_KEY = 'plates-day';
 const STATS_KEY = 'plates-stats';
 const DECISIONS_KEY = 'plates-decisions';
 
-/** Lifetime record: date -> {r: rank, s: score, w: words, h: hints, f: found[]}. */
+/** Lifetime record: date -> {r: rank, s: score, w: words, h: hints, f: found[],
+ *  c: challenge word or null}. */
 let statsDays = unstore(STATS_KEY, {});
 
 /* Today's saved progress is read ONCE before the first render can overwrite
@@ -316,10 +334,11 @@ let bootUsed = false;
 function saveDay() {
   if (!isDaily) return;
   store(DAY_KEY, { date: todayKey(), clue: CLUE, found,
-                   hinted: [...hinted], hintsUsed, finished });
+                   hinted: [...hinted], hintsUsed, finished,
+                   chal: { clue: chalClue, word: chalWord } });
   if (finished) {
     statsDays[todayKey()] = { r: rank(), s: total, w: found.length,
-                              h: hintsUsed, f: found.slice() };
+                              h: hintsUsed, f: found.slice(), c: chalWord };
     store(STATS_KEY, statsDays);
   }
 }
@@ -342,6 +361,10 @@ function restoreDay(snap) {
                 a ? '' : (rescued ? ' rescued' : ' extra'));
   }
   hintsUsed = snap.hintsUsed || 0;
+  if (snap.chal && snap.chal.clue === chalClue && snap.chal.word) {
+    chalWord = snap.chal.word;
+    renderChallenge();
+  }
   if (snap.finished) { finished = true; applyFinished(); }
   for (const w of snap.hinted || []) {
     hinted.add(w);
@@ -479,6 +502,94 @@ function plateTopText() {
   return 'PLATES #' + (dayIndex() + 1) + ' • ' + dateStr().toUpperCase();
 }
 
+/** "OVERDRIVE • HINTS USED: 2 • CHALLENGE ✓" — the plate's bottom field and
+ *  the share image's last line. `extra` is appended before uppercasing (the
+ *  designer preview passes " (sample)"). */
+function plateBottomText(rankName, extra) {
+  return (rankName + (extra || '') + ' • hints used: ' + hintsUsed +
+          (chalWord ? ' • challenge ✓' : '')).toUpperCase();
+}
+
+/* ---- the Challenge Plate ----
+ * The back of the score plate. One clue a day with only a handful of
+ * dictionary answers; the goal is to find any one of them. Clicking either
+ * face flips the plate; while the challenge is face-up the input feeds it.
+ * The floating mobile plate carries its own copy of both faces, so every
+ * .cptop/.cline on the page is updated together. */
+
+/** Load a challenge clue and reset its state (called from setPlate). */
+function setChallenge(clue) {
+  chalClue = clue;
+  chalAnswers = new Set(Object.keys(computeAnswers(clue).answers));
+  chalWord = null;
+  setFlipped(false);
+  renderChallenge();
+}
+
+/** Paint the challenge face(s): the clue until solved, then the word. */
+function renderChallenge() {
+  const solved = !!chalWord;
+  const line = (solved ? chalWord : chalClue).toUpperCase();
+  const top = 'CHALLENGE PLATE' + (solved ? ' ✓' : '');
+  document.body.classList.toggle('chaldone', solved);
+  document.querySelectorAll('.cptop').forEach(e => { e.textContent = top; });
+  document.querySelectorAll('.cline').forEach(e => { e.textContent = line; });
+  // Same size rule as the main line (which is clue + "-" + 4 digits, so 8
+  // characters for a 3-letter clue): the bare clue keeps the main line's
+  // size; a longer solving word shrinks to fit.
+  document.querySelectorAll('.plate.challenge').forEach(p => {
+    p.style.setProperty('--pline-size',
+      (21.5 * 8 / Math.max(CLUE.length + 5, line.length)).toFixed(2) + 'cqw');
+  });
+  syncEntry();
+}
+
+/** Turn the plate over (or back). Both the hero and floating copies flip. */
+function setFlipped(v) {
+  flipped = !!v;
+  document.body.classList.toggle('flipped', flipped);
+  document.querySelectorAll('.plateflip').forEach(f =>
+    f.classList.toggle('flipped', flipped));
+  syncEntry();
+}
+
+/** The input serves whichever face is up: locked once that puzzle is done. */
+function syncEntry() {
+  $('inp').disabled = flipped ? !!chalWord : finished;
+}
+
+/** A challenge submission (the input while the Challenge Plate is up). */
+async function submitChallenge(w) {
+  const W = w.toUpperCase(), CUP = chalClue.toUpperCase().split('').join('-');
+  if (w.length < chalClue.length) return say('too short', 'err');
+  if (!isValid(w, chalClue)) return say(W + " doesn't contain " + CUP, 'err');
+  if (!chalAnswers.has(w)) {
+    // Extra words solve it too: any real word valid for the clue counts.
+    if (!extraPool) {
+      try { await ensureExtras(); } catch (e) { /* fall through to reject */ }
+      if (chalWord) return;
+    }
+    if (!extraPool || !extraSet().has(w)) {
+      return say(W + ' is not in the word list', 'err');
+    }
+  }
+  chalWord = w;
+  say('CHALLENGE ✓  ' + W, 'gold');
+  confetti(null, 90);
+  renderChallenge();
+  if (finished) $('pbot').textContent = plateBottomText(rank());
+  render();
+}
+
+let extraSetCache = null;
+/** The Extra pool as a Set (built on first use). */
+function extraSet() {
+  if (!extraSetCache || extraSetCache.size !== extraPool.length) {
+    extraSetCache = new Set(extraPool);
+  }
+  return extraSetCache;
+}
+
 /** localStorage key for the mobile floating-plate preference. */
 const FLOAT_KEY = 'plates-showplate';
 
@@ -488,13 +599,24 @@ const FLOAT_KEY = 'plates-showplate';
  * every .odo on the page, so both always agree.
  */
 function buildFloatPlate() {
+  const f = document.createElement('div');
+  f.className = 'plateflip';
   const p = document.createElement('div');
   p.className = 'plate';
   p.innerHTML = '<div class="ptop" id="fptop"></div>' +
-                '<div class="pline"><span id="fclue"></span><span>-</span></div>';
+                '<div class="pline"><span id="fclue"></span><span>-</span></div>' +
+                '<div class="platecover">Challenge Plate</div>';
   p.querySelector('.pline').appendChild(
     document.querySelector('.plate .odo').cloneNode(true));
-  $('floatplate').appendChild(p);
+  const c = document.createElement('div');
+  c.className = 'plate challenge';
+  c.innerHTML = '<div class="ptop cptop"></div>' +
+                '<div class="pline"><span class="cline"></span></div>' +
+                '<div class="platecover">Score plate</div>';
+  f.appendChild(p);
+  f.appendChild(c);
+  f.addEventListener('click', plateClick);
+  $('floatplate').appendChild(f);
 }
 
 /** Show or hide the floating plate, sync the button label, remember. */
@@ -913,8 +1035,12 @@ function paintShareCanvas(ctx, d, imgs, rankName) {
   try { ctx.letterSpacing = '5px'; } catch (e) { /* older engines */ }
   // A rankName override marks a designer preview: brand it "(sample)" so a
   // screenshot of the preview can't pass for a real shared plate.
-  ctx.fillText((rn + (rankName ? ' (sample)' : '') + ' • hints used: ' +
-                hintsUsed).toUpperCase(), W / 2, Math.round(H * 0.879));
+  const botLine = plateBottomText(rn, rankName ? ' (sample)' : '');
+  if (ctx.measureText(botLine).width > W - 90) {   // long rank + challenge mark
+    ctx.font = '600 26px "Atkinson Hyperlegible Next", "Avenir Next", "Segoe UI", sans-serif';
+    try { ctx.letterSpacing = '4px'; } catch (e) { /* older engines */ }
+  }
+  ctx.fillText(botLine, W / 2, Math.round(H * 0.879));
   try { ctx.letterSpacing = '0px'; } catch (e) { /* older engines */ }
   // Front elements paint last: they may cover the text, and that's the fun.
   if (designed) pass('front', imgs && imgs.f);
@@ -1379,6 +1505,11 @@ function buildTrip() {
       ' fill="var(--card)" stroke="var(--bar)" stroke-width="2.5"/>').join('');
   const stops = $('stops');
   stops.innerHTML = '';
+  // "N points to go": rides beside the lowest unattained stop (renderTrip).
+  const togo = document.createElement('span');
+  togo.className = 'togo';
+  togo.id = 'togo';
+  stops.appendChild(togo);
   ranks.forEach(([name], i) => {
     const s = document.createElement('span');
     s.className = 'sname';
@@ -1428,13 +1559,35 @@ function renderTrip() {
     s.classList.toggle('reached', total >= ranks[idx][1]);
     s.classList.toggle('current', ranks[idx][0] === cur);
   });
+  // Points to the next rank, pinned to that rank's stop. Vertical rails put
+  // it under the rank name; horizontal rails put it above the dot, where no
+  // road segment can run through it.
+  const togo = $('togo'), next = seg + 1;
+  if (next < ranks.length) {
+    const n = ranks[next][1] - total;
+    togo.textContent = n + (n === 1 ? ' point to go' : ' points to go');
+    togo.hidden = false;
+    const [x, y] = tripPts[next];
+    togo.style.marginLeft = '0px';
+    if (isVerticalTrip()) {
+      togo.style.left = (x + 16) + 'px';
+      togo.style.top = (y + 9) + 'px';
+      togo.style.transform = '';
+    } else {
+      togo.style.left = x + 'px';
+      togo.style.top = (y < 30 ? -3 : 0) + 'px';   // always just above its dot, clear of the road
+      togo.style.transform = 'translateX(-50%)';
+    }
+  } else {
+    togo.hidden = true;
+  }
   // Horizontal rails: nudge any label back inside the card. An end label
   // centered on its dot (especially when enlarged as current) would otherwise
   // poke past the card edge. Runs after the class toggles above, since
   // becoming current changes a label's width.
   if (!isVerticalTrip()) {
     const tr = document.querySelector('.trip').getBoundingClientRect();
-    document.querySelectorAll('.sname').forEach(s => {
+    document.querySelectorAll('.sname, .togo:not([hidden])').forEach(s => {
       s.style.marginLeft = '0px';
       const r = s.getBoundingClientRect();
       if (r.left < tr.left) s.style.marginLeft = (tr.left - r.left) + 'px';
@@ -1563,7 +1716,6 @@ function setPlate(clue) {
   const sb = $('sharebtn');
   sb.classList.add('gated');
   sb.title = GATE_TIP;
-  syncCover();
 
   $('clue').textContent = CLUE.toUpperCase();
   $('ptop').textContent = plateTopText();
@@ -1581,6 +1733,7 @@ function setPlate(clue) {
   $('upcoming').value = '';
 
   buildTrip();
+  setChallenge(dailyChallenge());
   say('', '');
   render();
 }
@@ -1597,11 +1750,12 @@ function goDaily() {
 
 /** Handle a word submission. */
 async function submitWord() {
-  if (finished) return;
   const inp = $('inp');
   const w = inp.value.trim().toLowerCase();
   inp.value = '';
   if (!w) return;
+  if (flipped) return chalWord ? undefined : submitChallenge(w);
+  if (finished) return;
   const W = w.toUpperCase();
   // A word exactly the clue's length can only be the clue itself, spelled
   // out — allowed (OAF is valid for O-A-F). Anything shorter can't fit.
@@ -1706,13 +1860,8 @@ function shareText() {
   return 'Plates #' + (dayIndex() + 1) + ': ' + dateStr() + '\n' +
          '[' + CLUE.toUpperCase() + ' - ' + total + '] ' + rank() + '\n' +
          'Hints used: ' + hintsUsed + '\n' +
+         (chalWord ? 'Challenge ✓\n' : '') +
          'platesgame.com';
-}
-
-/** The plate's hover cover doubles as the share gate / copy affordance. */
-function syncCover() {
-  $('platecover').textContent =
-    finished ? (TAP ? 'Tap to copy' : 'Click to copy') : GATE_TIP;
 }
 
 /** Lock the page into the finished ("trophy") state. */
@@ -1724,9 +1873,8 @@ function applyFinished() {
   sb.classList.remove('gated');
   sb.title = '';
   document.body.classList.add('fin');
-  $('pbot').textContent =
-    (rank() + ' • hints used: ' + hintsUsed).toUpperCase();
-  syncCover();
+  $('pbot').textContent = plateBottomText(rank());
+  syncEntry();
 }
 
 function finishGame(withConfetti) {
@@ -1807,20 +1955,11 @@ function copyCanvas(cb) {
   }, 'image/png');
 }
 
-/** Page plate click: gate reminder before finish, image copy after. */
-async function plateClick() {
-  const c = $('platecover');
-  if (!finished) {
-    c.classList.add('show');                     // touch devices have no hover
-    setTimeout(() => c.classList.remove('show'), 1200);
-    return;
-  }
-  await drawPlate();
-  copyCanvas(result => {
-    c.textContent = result;
-    c.classList.add('show');
-    setTimeout(() => { c.classList.remove('show'); syncCover(); }, 1200);
-  });
+/** Page plate click: turn the plate over to the Challenge Plate and back.
+ *  (Copying the share image lives on the Share button and the finish modal.) */
+function plateClick() {
+  setFlipped(!flipped);
+  if (!TAP) $('inp').focus();
 }
 
 /** Modal plate click: copy with an overlay flash on the plate itself. */
@@ -1909,6 +2048,20 @@ function showYTab(t) {
   const words = Object.keys(ya).sort();
   sub.textContent = head + 'you found ' + words.filter(w => got.has(w)).length +
     ' of ' + words.length + (t === 'std' ? '' : ' extra words');
+  // Yesterday's Challenge Plate: its clue and every dictionary answer, the
+  // one the player found in bold.
+  const yc = $('ychal'), cGot = statsDays[info.key] && statsDays[info.key].c;
+  yc.innerHTML = '';
+  if (info.chal) {
+    yc.append('Challenge Plate ' + info.chal.toUpperCase().split('').join('-') + ': ');
+    Object.keys(computeAnswers(info.chal).answers).sort().forEach((w, i) => {
+      if (i) yc.append(', ');
+      const s = document.createElement(w === cGot ? 'b' : 'span');
+      s.textContent = w.toUpperCase();
+      yc.appendChild(s);
+    });
+    if (cGot) yc.append(' ✓');
+  }
   box.innerHTML = '';
   for (const w of words) {
     const row = document.createElement('div');
@@ -2086,6 +2239,7 @@ function syncReveal() {
  */
 
 const GH_TOKEN_KEY = 'plates-gh-token';
+let ghAfterToken = null;      // the commit to resume once a token is entered
 const GH_API = 'https://api.github.com/repos/mschachner/plates/contents/';
 
 function ghHeaders() {
@@ -2110,6 +2264,139 @@ async function ghPut(file, text, sha, message) {
     body: JSON.stringify({ message, content: b64encode(text), sha }),
   });
   if (!r.ok) throw new Error(file + ': HTTP ' + r.status);
+}
+
+/* ---- Challenge Plate curation (dev) ----
+ * Pick a scheduled day from the "Challenge" row, reroll its clue as often as
+ * you like (each roll respects the CHAL rules: 1-3 dictionary answers, not the
+ * day's main clue, not a clue whose every answer fits the main clue, no clue
+ * or answer word repeating within 365 days either way), then commit the schedule to data.js through
+ * the same GitHub contents flow the dictionary uses. */
+
+let chalPool = null;          // Map clue -> sorted answers, for 1-3-answer clues
+const chalDirty = new Set();  // day indices rerolled since the last commit
+
+/** Every 3-letter clue with 1-3 dictionary answers (built on first use). */
+function challengePool() {
+  if (chalPool) return chalPool;
+  const all = new Map();
+  for (const w of DICT) {
+    const seen = new Set(), n = w.length;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      for (let k = j + 1; k < n; k++) {
+        const c = w[i] + w[j] + w[k];
+        if (seen.has(c)) continue;
+        seen.add(c);
+        const a = all.get(c);
+        if (a) a.push(w); else all.set(c, [w]);
+      }
+    }
+  }
+  chalPool = new Map();
+  for (const [c, a] of all) if (a.length <= 3) chalPool.set(c, a.sort());
+  return chalPool;
+}
+
+/** Dictionary answers for a challenge clue (pool entry, else computed). */
+function challengeAnswers(c) {
+  const p = challengePool().get(c);
+  return p || Object.keys(computeAnswers(c).answers).sort();
+}
+
+/** "#32 / 9 Sep / K-M-U → KUMQUAT, KUMQUATS" for a day index. */
+function chalOptionLabel(idx) {
+  const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const d = todayDate();
+  d.setDate(d.getDate() + (idx - dayIndex()));
+  const c = chalSched[idx % chalSched.length];
+  return '#' + (idx + 1) + ' / ' + d.getDate() + ' ' + MO[d.getMonth()] + ' / ' +
+         c.toUpperCase().split('').join('-') + ' \u2192 ' +
+         challengeAnswers(c).map(w => w.toUpperCase()).join(', ') +
+         (chalDirty.has(idx) ? ' *' : '');
+}
+
+/** Fill the day picker: today and the next 14 days, tomorrow preselected. */
+function buildChalUpcoming() {
+  const sel = $('chalup');
+  const keep = sel.value;
+  sel.innerHTML = '';
+  for (let k = 0; k <= 14; k++) {
+    const idx = dayIndex() + k;
+    const o = document.createElement('option');
+    o.value = idx;
+    o.textContent = chalOptionLabel(idx);
+    sel.appendChild(o);
+  }
+  sel.value = keep || String(dayIndex() + 1);
+  $('chalcommit').disabled = !chalDirty.size;
+  $('chalcommit').textContent = chalDirty.size
+    ? 'Commit (' + chalDirty.size + ')' : 'Commit';
+}
+
+/** Reroll the selected day's challenge clue under the CHAL rules. */
+function rerollChallenge() {
+  const idx = +$('chalup').value, n = SCHED.length;
+  const main = SCHED[((idx % n) + n) % n], cur = chalSched[idx % chalSched.length];
+  const cands = [];
+  for (const [c, a] of challengePool()) {
+    if (c === main || c === cur) continue;
+    if (a.every(w => isValid(w, main))) continue;
+    // No repeat of the clue, and no answer word recurring under another
+    // clue, within 365 days either way.
+    let clash = false;
+    for (let j = Math.max(0, idx - 364); j <= Math.min(chalSched.length - 1, idx + 364); j++) {
+      if (j === idx) continue;
+      const other = chalSched[j];
+      if (other === c || challengeAnswers(other).some(w => a.includes(w))) {
+        clash = true;
+        break;
+      }
+    }
+    if (!clash) cands.push(c);
+  }
+  if (!cands.length) return say('no other challenge clue fits that day', 'err');
+  const c = cands[Math.floor(Math.random() * cands.length)];
+  chalSched[idx % chalSched.length] = c;
+  chalDirty.add(idx);
+  buildChalUpcoming();
+  if (idx === dayIndex() && isDaily) { setChallenge(c); render(); }   // today: play it now
+  say('#' + (idx + 1) + ' \u2192 ' + c.toUpperCase().split('').join('-') + ': ' +
+      challengeAnswers(c).map(w => w.toUpperCase()).join(', '), 'ok');
+}
+
+/** Commit the rerolled schedule: CHAL inside data.js is replaced in place. */
+async function commitChallenges() {
+  if (!chalDirty.size) return;
+  if (!unstore(GH_TOKEN_KEY, '')) {
+    ghAfterToken = commitChallenges;
+    return openModal('ghmodal');
+  }
+  const btn = $('chalcommit');
+  btn.disabled = true;
+  say('committing\u2026', 'ok');
+  try {
+    const data = await ghGet('data.js');
+    const text = b64decode(data.content);
+    const m = text.match(/const CHAL = "([^"]*)"/);
+    if (!m) throw new Error('CHAL not found in data.js');
+    const live = m[1].split(' ');
+    for (const idx of chalDirty) live[idx % live.length] = chalSched[idx % chalSched.length];
+    const days = [...chalDirty].sort((a, b) => a - b).map(i => '#' + (i + 1)).join(', ');
+    await ghPut('data.js', text.replace(m[0], 'const CHAL = "' + live.join(' ') + '"'),
+                data.sha, 'Challenge Plate: reroll ' + days + ' (in-game curation)');
+    chalDirty.clear();
+    buildChalUpcoming();
+    say('committed ' + days + '. live after the next deploy', 'ok');
+  } catch (e) {
+    if (String(e.message).includes('401')) {
+      store(GH_TOKEN_KEY, '');
+      ghAfterToken = commitChallenges;
+      openModal('ghmodal');
+    }
+    say('commit failed. ' + e.message, 'err');
+    btn.disabled = false;
+  }
 }
 
 /** Footer strip: every pending decision as a discardable chip. */
@@ -2156,7 +2443,10 @@ function setWlStatus(text, cls) {
 
 async function commitDictionary() {
   if (!decisions.size) return;
-  if (!unstore(GH_TOKEN_KEY, '')) return openModal('ghmodal');
+  if (!unstore(GH_TOKEN_KEY, '')) {
+    ghAfterToken = commitDictionary;
+    return openModal('ghmodal');
+  }
   const btn = $('wlcommit');
   btn.disabled = true;
   setWlStatus('committing\u2026');
@@ -2236,7 +2526,7 @@ function resetFinish(ev) {
   const sb = $('sharebtn');
   sb.classList.add('gated');
   sb.title = GATE_TIP;
-  syncCover();
+  syncEntry();
   saveDay();
   flashLabel(ev.target, 'Done');
 }
@@ -2307,7 +2597,7 @@ function wireEvents() {
   $('sharebtn').addEventListener('click', shareClick);
   $('copytextbtn').addEventListener('click', copyText);
   $('fincopybtn').addEventListener('click', copyText);
-  document.querySelector('.plate').addEventListener('click', plateClick);
+  $('plateflip').addEventListener('click', plateClick);
 
   // Header
   $('rulesbtn').addEventListener('click', () => openModal('rulesmodal'));
@@ -2351,6 +2641,7 @@ function wireEvents() {
     closeModal('devmodal');
     $('devtoggle').checked = true;
     document.body.classList.add('dev');
+    if (!$('chalup').options.length) buildChalUpcoming();
   });
   // Floating score plate (mobile): built once, toggled by its button, with
   // the choice remembered across visits.
@@ -2381,7 +2672,8 @@ function wireEvents() {
     if (!t) return;
     store(GH_TOKEN_KEY, t);
     closeModal('ghmodal');
-    commitDictionary();
+    (ghAfterToken || commitDictionary)();
+    ghAfterToken = null;
   });
   // Upcoming plates: the next 14 scheduled days, playable ahead of time.
   const up = $('upcoming');
@@ -2401,6 +2693,31 @@ function wireEvents() {
     if (up.value) { setPlate(up.value); $('inp').focus(); }
   });
   $('resetfinbtn').addEventListener('click', resetFinish);
+  $('resetchalbtn').addEventListener('click', ev => {
+    chalWord = null;
+    renderChallenge();
+    if (finished) $('pbot').textContent = plateBottomText(rank());
+    render();
+    flashLabel(ev.target, 'Done');
+  });
+  // Challenge Plate curation (dev): pick a day, reroll, commit.
+  $('chalreroll').addEventListener('click', rerollChallenge);
+  $('chalcommit').addEventListener('click', commitChallenges);
+  $('devtoggle').addEventListener('change', () => {
+    if (isDev() && !$('chalup').options.length) buildChalUpcoming();
+  });
+  if (isDev()) buildChalUpcoming();
+  // Custom challenge (dev): load any 3-letter clue as the Challenge Plate.
+  $('chalform').addEventListener('submit', e => {
+    e.preventDefault();
+    const c = $('chalin').value.trim().toLowerCase();
+    if (!/^[a-z]{3}$/.test(c)) return say('challenge clue must be 3 letters', 'err');
+    $('chalin').value = '';
+    setChallenge(c);
+    setFlipped(true);
+    say(chalAnswers.size + ' answers for ' + c.toUpperCase().split('').join('-'), 'ok');
+    $('inp').focus();
+  });
   $('resettodaybtn').addEventListener('click', resetToday);
   $('nearliftbtn').addEventListener('click', nearLiftoff);
   document.querySelectorAll('#seg button').forEach(b =>
@@ -2465,6 +2782,20 @@ function boot() {
   wireEvents();
   goDaily();
   loadDrawImg();
+  // Motion that should only follow a user action (the plate flip) is gated on
+  // body.ready, set two frames after the stylesheet has actually applied: a
+  // sheet that lands after first paint (?style= swaps) must not animate the
+  // challenge face into its resting position. The plate block defines
+  // --plate-bw in every stylesheet, so its presence means "styled".
+  const armWhenStyled = () => {
+    if (getComputedStyle(document.documentElement).getPropertyValue('--plate-bw').trim()) {
+      requestAnimationFrame(() => requestAnimationFrame(() =>
+        document.body.classList.add('ready')));
+    } else {
+      requestAnimationFrame(armWhenStyled);
+    }
+  };
+  armWhenStyled();
   // The Extra pool is big and never needed for first paint: fetch it in the
   // background, then fold it into the day (the counter and any submission
   // that arrives first wait on ensureExtras()).

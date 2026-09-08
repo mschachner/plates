@@ -4585,7 +4585,6 @@ blowfish
 blowhard
 blowhole
 blowing
-blowjob
 blown
 blowout
 blowouts
@@ -23815,7 +23814,6 @@ jab
 jabbed
 jabber
 jabbering
-jabberwocky
 jabbing
 jabs
 jacaranda

@@ -1,6 +1,9 @@
 # Plates
 
-Plates is a daily word game based on license plates which I love to play! Every day, a new plate clue is presented, and players try to supply as many words as they can which are valid for that clue.
+Plates is a daily word game based on license plates which I love to play! The site offers two puzzles:
+
+- **Plates**: Every day, a new plate clue is presented, and players try to supply as many words as they can which are valid for that clue.
+- **Challenge Plate**: A plate clue is presented and players try to supply a single word valid for the clue.
 
 ## Validity
 
