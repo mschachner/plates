@@ -17,7 +17,7 @@
  *   9.  Stats
  *   10. Messages & label flashes
  *   11. Play actions (submit, hint, rescue)
- *   12. Finish & sharing (confetti, plate image, copy paths)
+ *   12. Sharing (confetti, plate image, copy paths)
  *   13. Modals
  *   14. Dev tools
  *   15. Event wiring & boot
@@ -105,11 +105,10 @@ const RANK_COLORS = ['#8a8781', '#17151a', '#1e6b34', '#1b3a8c',
 const LIFTOFF_BG = '#17151a';
 
 /** Deploy build number — keep in step with the ?v= query in index.html. */
-const BUILD = 37;
+const BUILD = 38;
 
 /** Touch devices get "Tap" wording. */
 const TAP = matchMedia('(pointer: coarse)').matches;
-const GATE_TIP = (TAP ? 'Tap' : 'Click') + " Finish to share once you're done!";
 
 /* ================================================================
  * 2. Small utilities
@@ -300,7 +299,6 @@ let found = [];           // words found, in find order
 let extraFound = new Set(); // subset of `found` that came from the Extra pool
 let hinted = new Set();   // words revealed as hint masks
 let hintsUsed = 0;
-let finished = false;     // player pressed Finish (locks the day)
 let isDaily = false;      // current plate is today's scheduled plate
 let diff = 'easy';        // dev roll difficulty band
 let rollLen = 'any';      // dev roll clue length: '3' | '4' | 'any'
@@ -330,20 +328,21 @@ let statsDays = unstore(STATS_KEY, {});
 const bootDay = unstore(DAY_KEY, null);
 let bootUsed = false;
 
-/** Persist today's progress; record stats only once the day is finished. */
+/** Persist today's progress; the stats record follows it automatically, so
+ *  streaks and the rank distribution need no explicit finish. */
 function saveDay() {
   if (!isDaily) return;
   store(DAY_KEY, { date: todayKey(), clue: CLUE, found,
-                   hinted: [...hinted], hintsUsed, finished,
+                   hinted: [...hinted], hintsUsed,
                    chal: { clue: chalClue, word: chalWord } });
-  if (finished) {
+  if (found.length > 0) {
     statsDays[todayKey()] = { r: rank(), s: total, w: found.length,
                               h: hintsUsed, f: found.slice(), c: chalWord };
     store(STATS_KEY, statsDays);
   }
 }
 
-/** Rebuild found words, hint masks, and finished state from a day snapshot.
+/** Rebuild found words and hint masks from a day snapshot.
  *  A saved word that isn't on the answer list is an Extra word unless it is
  *  one of the editor's pending rescues — which is decidable without waiting
  *  for the Extra pool to load. */
@@ -365,7 +364,6 @@ function restoreDay(snap) {
     chalWord = snap.chal.word;
     renderChallenge();
   }
-  if (snap.finished) { finished = true; applyFinished(); }
   for (const w of snap.hinted || []) {
     hinted.add(w);
     if (!found.includes(w)) insertRow(w, makeHintRow(w));
@@ -553,9 +551,9 @@ function setFlipped(v) {
   syncEntry();
 }
 
-/** The input serves whichever face is up: locked once that puzzle is done. */
+/** The input serves whichever face is up: locked once the challenge is solved. */
 function syncEntry() {
-  $('inp').disabled = flipped ? !!chalWord : finished;
+  $('inp').disabled = flipped ? !!chalWord : false;
 }
 
 /** A challenge submission (the input while the Challenge Plate is up). */
@@ -577,7 +575,6 @@ async function submitChallenge(w) {
   say('CHALLENGE ✓  ' + W, 'gold');
   confetti(null, 90);
   renderChallenge();
-  if (finished) $('pbot').textContent = plateBottomText(rank());
   render();
 }
 
@@ -1600,12 +1597,12 @@ function renderTrip() {
  * 9. Stats
  * ================================================================ */
 
-/** Repaint the stats modal from the lifetime record (finished days only). */
+/** Repaint the stats modal from the lifetime record (days with a word found). */
 function renderStats() {
   const days = Object.entries(statsDays).filter(([, v]) => v.w > 0);
   const set = new Set(days.map(([k]) => k));
 
-  // Current streak: walk back from today; an unfinished today doesn't break it.
+  // Current streak: walk back from today; an unplayed today doesn't break it.
   let streak = 0;
   for (let d = todayDate(); ; d.setDate(d.getDate() - 1)) {
     if (set.has(dkey(d))) streak++;
@@ -1626,12 +1623,12 @@ function renderStats() {
   $('statstreak').textContent = streak;
   $('statbest').textContent = best;
 
-  // Rank distribution, top rank first; today highlighted once finished.
+  // Rank distribution, top rank first; today highlighted once played.
   const counts = {};
   for (const [name] of RANKS) counts[name] = 0;
   for (const [, v] of days) if (counts[v.r] !== undefined) counts[v.r]++;
   const max = Math.max(1, ...Object.values(counts));
-  const todayRank = (isDaily && finished) ? rank() : null;
+  const todayRank = (isDaily && statsDays[todayKey()]) ? rank() : null;
   const box = $('dist');
   box.innerHTML = '';
   for (let i = RANKS.length - 1; i >= 0; i--) {
@@ -1706,16 +1703,11 @@ function setPlate(clue) {
   ranks = RANKS.map(([n, f]) => [n, Math.round(perfect * f / 5) * 5]);
 
   total = 0; found = []; extraFound = new Set(); hinted = new Set();
-  hintsUsed = 0; finished = false;
+  hintsUsed = 0;
   extras = computeExtras(clue);          // empty until the pool lands
 
-  document.body.classList.remove('fin');
   $('inp').disabled = false;
   $('hintbtn').disabled = false;
-  $('finishbtn').style.display = '';
-  const sb = $('sharebtn');
-  sb.classList.add('gated');
-  sb.title = GATE_TIP;
 
   $('clue').textContent = CLUE.toUpperCase();
   $('ptop').textContent = plateTopText();
@@ -1755,7 +1747,6 @@ async function submitWord() {
   inp.value = '';
   if (!w) return;
   if (flipped) return chalWord ? undefined : submitChallenge(w);
-  if (finished) return;
   const W = w.toUpperCase();
   // A word exactly the clue's length can only be the clue itself, spelled
   // out — allowed (OAF is valid for O-A-F). Anything shorter can't fit.
@@ -1771,7 +1762,7 @@ async function submitWord() {
     // in flight, then re-check that nothing landed while we waited.
     if (!extraPool) {
       try { await ensureExtras(); } catch (e) { /* fall through to reject */ }
-      if (finished || found.includes(w)) return;
+      if (found.includes(w)) return;
     }
     const x = extras[w];
     if (x) {
@@ -1810,7 +1801,6 @@ async function submitWord() {
 
 /** Reveal the shortest unfound word as a mask (cheapest remaining answer). */
 function hint() {
-  if (finished) return;
   const pool = Object.keys(answers).filter(w =>
     !found.includes(w) && !hinted.has(w) && decisions.get(w) !== 'remove');
   if (!pool.length) return say('nothing left to hint', 'err');
@@ -1852,7 +1842,7 @@ function unrescue(w) {
 }
 
 /* ================================================================
- * 12. Finish & sharing
+ * 12. Sharing
  * ================================================================ */
 
 /** Four-line text share card. */
@@ -1862,27 +1852,6 @@ function shareText() {
          'Hints used: ' + hintsUsed + '\n' +
          (chalWord ? 'Challenge ✓\n' : '') +
          'platesgame.com';
-}
-
-/** Lock the page into the finished ("trophy") state. */
-function applyFinished() {
-  $('inp').disabled = true;
-  $('hintbtn').disabled = true;
-  $('finishbtn').style.display = 'none';
-  const sb = $('sharebtn');
-  sb.classList.remove('gated');
-  sb.title = '';
-  document.body.classList.add('fin');
-  $('pbot').textContent = plateBottomText(rank());
-  syncEntry();
-}
-
-function finishGame(withConfetti) {
-  finished = true;
-  applyFinished();
-  saveDay();
-  if (withConfetti) confetti();
-  openFinish();
 }
 
 /** Gold palette for the Liftoff burst. */
@@ -1956,7 +1925,7 @@ function copyCanvas(cb) {
 }
 
 /** Page plate click: turn the plate over to the Challenge Plate and back.
- *  (Copying the share image lives on the Share button and the finish modal.) */
+ *  (Copying the share image lives in the share modal.) */
 function plateClick() {
   setFlipped(!flipped);
   if (!TAP) $('inp').focus();
@@ -1977,12 +1946,13 @@ function copyText(ev) {
     .then(() => flashLabel(ev.target, 'Copied'));
 }
 
-/** Share copies the plate IMAGE; "Copy as text" covers the text card. */
-async function shareClick() {
-  const btn = $('sharebtn');
-  if (!finished) return say(GATE_TIP, 'err');
+/** Share opens the share modal: the plate image (click to copy) and the
+ *  text card. Available at any point in the day. */
+async function openShare() {
+  $('sharescore').innerHTML = '<b>' + total + '</b> points &mdash; ' + rank();
+  $('copynote').textContent = (TAP ? 'tap' : 'click') + ' the plate to copy it';
   await drawPlate();
-  copyCanvas(result => flashLabel(btn, result));
+  openModal('sharemodal');
 }
 
 /* ================================================================
@@ -1992,15 +1962,7 @@ async function shareClick() {
 function openModal(id) { $(id).classList.add('open'); }
 function closeModal(id) { $(id).classList.remove('open'); }
 
-async function openFinish() {
-  $('finishscore').innerHTML = '<b>' + total + '</b> points &mdash; ' + rank();
-  $('copynote').textContent = (TAP ? 'tap' : 'click') + ' the plate to copy it';
-  await drawPlate();
-  openModal('finishmodal');
-}
-function closeFinish() { closeModal('finishmodal'); }
-
-/** The Liftoff celebration: gold confetti and a finish-or-continue choice. */
+/** The Liftoff celebration: gold confetti. */
 function openLiftoff() {
   openModal('liftoffmodal');
   confetti(GOLD_CONFETTI, 320);
@@ -2508,27 +2470,9 @@ async function commitDictionary() {
 
 /** Dev: set the score one short word from Liftoff, to test the celebration. */
 function nearLiftoff() {
-  if (finished) return say('reset finish first', 'err');
   total = Math.max(0, ranks[ranks.length - 1][1] - LENGTH_POINTS);
   render();
   say('one word from Liftoff', 'ok');
-}
-
-/** Dev: unlock a finished day (also un-records it from stats). */
-function resetFinish(ev) {
-  finished = false;
-  document.body.classList.remove('fin');
-  delete statsDays[todayKey()];
-  store(STATS_KEY, statsDays);
-  $('inp').disabled = false;
-  $('hintbtn').disabled = false;
-  $('finishbtn').style.display = '';
-  const sb = $('sharebtn');
-  sb.classList.add('gated');
-  sb.title = GATE_TIP;
-  syncEntry();
-  saveDay();
-  flashLabel(ev.target, 'Done');
 }
 
 /** Dev: wipe today back to a blank slate. */
@@ -2587,16 +2531,9 @@ function wireEvents() {
     if (clean !== inp.value) inp.value = clean;
   });
   $('hintbtn').addEventListener('click', hint);
-  $('finishbtn').addEventListener('click', () => finishGame(true));
-  // Liftoff modal: Finish skips the blue confetti (gold already fell).
-  $('lofinish').addEventListener('click', () => {
-    closeModal('liftoffmodal');
-    finishGame(false);
-  });
   $('lokeep').addEventListener('click', () => closeModal('liftoffmodal'));
-  $('sharebtn').addEventListener('click', shareClick);
-  $('copytextbtn').addEventListener('click', copyText);
-  $('fincopybtn').addEventListener('click', copyText);
+  $('sharebtn').addEventListener('click', openShare);
+  $('sharecopybtn').addEventListener('click', copyText);
   $('plateflip').addEventListener('click', plateClick);
 
   // Header
@@ -2657,8 +2594,13 @@ function wireEvents() {
     closeModal('welcomemodal');
     openModal('rulesmodal');
   });
+  $('welcomenews').addEventListener('click', () => {
+    closeModal('welcomemodal');
+    openModal('newsmodal');
+  });
+  $('newsbtn').addEventListener('click', () => openModal('newsmodal'));
 
-  // Finish modal
+  // Share modal
   $('plateimg').addEventListener('click', copyPlate);
 
   // Dev tools
@@ -2692,11 +2634,9 @@ function wireEvents() {
   up.addEventListener('change', () => {
     if (up.value) { setPlate(up.value); $('inp').focus(); }
   });
-  $('resetfinbtn').addEventListener('click', resetFinish);
   $('resetchalbtn').addEventListener('click', ev => {
     chalWord = null;
     renderChallenge();
-    if (finished) $('pbot').textContent = plateBottomText(rank());
     render();
     flashLabel(ev.target, 'Done');
   });
@@ -2737,17 +2677,6 @@ function wireEvents() {
     $('inp').focus();
   });
 
-  // Leaving without pressing Finish forfeits the day's stats entry, so warn
-  // when today's plate has real progress. (Browsers show their own generic
-  // wording; the handler just opts in. Dev rolls and finished days never
-  // warn, and neither does an untouched page.)
-  window.addEventListener('beforeunload', e => {
-    if (isDaily && !finished && found.length > 0) {
-      e.preventDefault();
-      e.returnValue = '';
-    }
-  });
-
   // Modals: any .close button or backdrop click closes; Escape closes all.
   document.querySelectorAll('.overlay').forEach(ov => {
     ov.addEventListener('click', e => {
@@ -2783,10 +2712,10 @@ function boot() {
   goDaily();
   loadDrawImg();
   // Motion that should only follow a user action (the plate flip) is gated on
-  // body.ready, set two frames after the stylesheet has actually applied: a
-  // sheet that lands after first paint (?style= swaps) must not animate the
-  // challenge face into its resting position. The plate block defines
-  // --plate-bw in every stylesheet, so its presence means "styled".
+  // body.ready, set two frames after the stylesheet has actually applied, so
+  // a late-landing sheet never animates the challenge face into its resting
+  // position. The plate block defines --plate-bw, so its presence means
+  // "styled".
   const armWhenStyled = () => {
     if (getComputedStyle(document.documentElement).getPropertyValue('--plate-bw').trim()) {
       requestAnimationFrame(() => requestAnimationFrame(() =>
