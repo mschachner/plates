@@ -510,7 +510,10 @@
   .msg button:hover { background:var(--good); color:var(--accent-ink); }
 
 /* ---- 8. road-trip rail ---- */
-  .trip { position:relative; width:100%; height:80px; flex:none; align-self:stretch; }
+  .trip { position:relative; width:100%; height:80px; flex:none; align-self:stretch;
+          transition:opacity .25s ease, filter .25s ease; }
+  /* The rail tracks the score plate, so it recedes while the Challenge Plate is up. */
+  body.flipped .trip { opacity:.35; filter:blur(1.5px); pointer-events:none; }
   .trip svg { position:absolute; inset:0; width:100%; height:100%; overflow:visible; }
   /* Solid 4px track (no dotted lines in Flat); progress in the rank color;
      discs are filled — reached ones in the rank color, unreached ones as
@@ -656,6 +659,7 @@
     button, .rankchip, .bgswatch, .swatch, .stk, #plateimg, #designbtn { transition:none; }
     button:hover, .rankchip:hover, .bgswatch:hover, .swatch:hover, .stk:hover,
     #plateimg:hover, #designbtn:hover, .bgswatch.active { transform:none; }
+    .trip { transition:none; }
   }
 
 /* ---- 11. responsive regimes ---- */
