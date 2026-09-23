@@ -316,11 +316,18 @@
      color, so the game state reads as the color of the whole play area.
      .layout is a child of .page, so the band is painted with a hard 0-blur
      box-shadow (a fill, not a shadow) and clipped to the viewport width with
-     clip-path. */
+     clip-path. The band lives on ::before, not on .layout itself: clip-path
+     clips every descendant, including the position:fixed entry bar, floating
+     plate and toast on mobile, which vanished once .layout scrolled above the
+     bottom of the screen. isolation keeps the stacking context the clip-path
+     used to create, and holds the z-index:-1 band above .page's background. */
   .layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,3fr);
             grid-template-areas:"words play"; gap:calc(24px*var(--sp)) calc(44px*var(--sp));
             width:100%; max-width:1480px; margin:0 auto; align-items:start;
-            background:var(--ranktint); padding:calc(56px*var(--sp)) 0 calc(64px*var(--sp));
+            padding:calc(56px*var(--sp)) 0 calc(64px*var(--sp));
+            position:relative; isolation:isolate; }
+  .layout::before { content:""; position:absolute; inset:0; z-index:-1;
+            background:var(--ranktint);
             box-shadow:0 0 0 100vmax var(--ranktint); clip-path:inset(0 -100vmax);
             transition:background-color .6s ease, box-shadow .6s ease; }
   .half { display:flex; flex-direction:column; align-items:center; min-width:0; }
