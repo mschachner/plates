@@ -39488,6 +39488,8 @@ septa
 septal
 septic
 septum
+sepulchre
+sepulchres
 sequel
 sequelae
 sequels
