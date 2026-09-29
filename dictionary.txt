@@ -44862,6 +44862,7 @@ tetra
 tetrachloride
 tetracycline
 tetrad
+tetrafluoroboric
 tetrahedral
 tetrahedron
 tetrahydrocannabinol
