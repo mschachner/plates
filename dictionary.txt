@@ -31968,6 +31968,7 @@ perform
 performance
 performances
 performative
+performatively
 performed
 performer
 performers
